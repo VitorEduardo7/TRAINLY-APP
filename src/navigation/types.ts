@@ -1,0 +1,19 @@
+export type RootStackParamList = {
+  Auth: undefined;
+  Main: undefined;
+  Run: undefined;
+  ClubDetail: { clubId: string };
+  RouteDetail: { routeId: string };
+  /** Perfil público de outro atleta. `name` é só pra preencher o cabeçalho
+   *  antes do perfil terminar de carregar. */
+  UserProfile: { userId: string; name?: string };
+};
+
+export type MainTabParamList = {
+  Dashboard: undefined;
+  Friends: undefined;
+  Clubs: undefined;
+  Explore: undefined;
+  History: undefined;
+  Profile: undefined;
+};

@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Trainly",
+    "slug": "trainly-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "trainly",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.trainly.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "O Trainly usa sua localização para registrar a rota e a distância das suas corridas."
+      }
+    },
+    "android": {
+      "package": "com.trainly.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0a0b0f",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O Trainly usa sua localização para registrar a rota e a distância das suas corridas."
+        }
+      ]
+    ]
+  }
+}
