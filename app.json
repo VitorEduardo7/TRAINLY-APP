@@ -24,7 +24,9 @@
       },
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
+        "ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
       "predictiveBackGestureEnabled": false
     },
@@ -38,6 +40,11 @@
           "locationWhenInUsePermission": "O Trainly usa sua localização para registrar a rota e a distância das suas corridas."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c3a83ea3-9fe2-41cb-bee6-8cd85e057e9c"
+      }
+    }
   }
 }
