@@ -12,6 +12,7 @@ import { RankWidget } from '../components/RankWidget';
 import { RankTrail } from '../components/RankTrail';
 import { TrainlyButton } from '../components/TrainlyButton';
 import { EditProfileModal } from '../components/EditProfileModal';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { activityStats } from '../lib/stats';
 import { formatClock, formatKm } from '../lib/geo';
 
@@ -66,6 +67,8 @@ export function ProfileScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.primary} />}
     >
+      <ScreenHeader title="Perfil" />
+
       <View style={styles.header}>
         <Avatar name={profile?.name ?? '?'} size={88} />
         <Text style={[styles.name, { color: colors.textPrimary }]}>{profile?.name}</Text>

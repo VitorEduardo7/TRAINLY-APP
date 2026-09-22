@@ -426,7 +426,13 @@ const STYLE_URL = {
   light: 'https://tiles.openfreemap.org/styles/positron',
 } as const;
 
-const MAPLIBRE_VERSION = '6.10.0';
+// A partir da v6, o MapLibre GL JS passou a publicar só módulo ES
+// (`dist/maplibre-gl.mjs`) — o `dist/maplibre-gl.js` (UMD, o que esta página
+// carrega com uma <script src> comum) não existe mais a partir daí, e pedir
+// esse caminho em v6 dá 404 (confirmado ao vivo em unpkg.com depois que o
+// mapa do Android falhou num aparelho real com "Mapa sem conexão" mesmo com
+// internet normal). A v5.24.0 é a mais recente que ainda publica o UMD.
+const MAPLIBRE_VERSION = '5.24.0';
 
 /**
  * Gera a página que roda dentro do WebView. É HTML/CSS/JS puro — nenhuma

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { TrainlyMap, TrainlyMarker } from '../components/TrainlyMap';
 import * as Location from 'expo-location';
 import { useNavigation } from '@react-navigation/native';
@@ -315,6 +316,30 @@ export function RunScreen() {
     }
   };
 
+  // A tela não tinha jeito nenhum de sair antes de terminar a corrida — sem
+  // botão de voltar, só dava pra sair pelos Alerts de "Finalizar". Parado
+  // (idle, nada gravado ainda) sai direto; em andamento, confirma antes de
+  // descartar (mesma limpeza de assinatura/timer que finishTracking faz).
+  const handleClose = () => {
+    if (phaseRef.current === 'idle') {
+      navigation.goBack();
+      return;
+    }
+    Alert.alert('Trainly', 'Sair agora descarta a corrida em andamento. Tem certeza?', [
+      { text: 'Continuar corrida', style: 'cancel' },
+      {
+        text: 'Sair sem salvar',
+        style: 'destructive',
+        onPress: () => {
+          watchSubscription.current?.remove();
+          watchSubscription.current = null;
+          if (timerRef.current) clearInterval(timerRef.current);
+          navigation.goBack();
+        },
+      },
+    ]);
+  };
+
   const gpsDotColor =
     gpsInfo.quality === 'good' ? colors.success : gpsInfo.quality === 'bad' ? colors.danger : colors.primary;
 
@@ -332,6 +357,14 @@ export function RunScreen() {
         followSmoothly
         offlineHint="Sua corrida está sendo gravada normalmente — distância, tempo, ritmo e o trajeto para publicar como rota. Só o desenho do mapa precisa de internet."
       />
+
+      <Pressable
+        onPress={handleClose}
+        hitSlop={10}
+        style={[styles.backBtn, { top: insets.top + 10, backgroundColor: colors.card, borderColor: colors.border }]}
+      >
+        <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
+      </Pressable>
 
       {/* paddingBottom soma o inset pra "Pausar"/"Finalizar" não ficarem sob a barra de gestos do celular. */}
       <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border, paddingBottom: 20 + insets.bottom }]}>
@@ -474,6 +507,16 @@ function Stat({
 
 const styles = StyleSheet.create({
   map: { flex: 1 },
+  backBtn: {
+    position: 'absolute',
+    left: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
   panel: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,

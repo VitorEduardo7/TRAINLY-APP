@@ -10,6 +10,7 @@ import { useRoutes } from '../hooks/useRoutes';
 import { Card } from '../components/Card';
 import { TrainlyButton } from '../components/TrainlyButton';
 import { PublishRouteModal } from '../components/PublishRouteModal';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { formatClock, formatKm, paceMinPerKm } from '../lib/geo';
 import { Activity, RouteDifficulty, RouteType } from '../types/models';
 import { RootStackParamList } from '../navigation/types';
@@ -174,9 +175,7 @@ export function HistoryScreen() {
         contentContainerStyle={styles.list}
         onRefresh={reload}
         refreshing={loading}
-        ListHeaderComponent={
-          <Text style={[styles.header, { color: colors.textPrimary }]}>Histórico</Text>
-        }
+        ListHeaderComponent={<ScreenHeader title="Histórico" />}
         ListEmptyComponent={
           !loading ? (
             <Text style={[styles.empty, { color: colors.textMuted }]}>

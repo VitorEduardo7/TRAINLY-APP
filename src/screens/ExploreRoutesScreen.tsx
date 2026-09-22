@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -6,9 +6,13 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../theme/ThemeContext';
 import { useRoutes } from '../hooks/useRoutes';
 import { Card } from '../components/Card';
+import { ScreenHeader } from '../components/ScreenHeader';
+import { boundsOf, LatLon, TrainlyMap, TrainlyMarker } from '../components/TrainlyMap';
 import { formatKm } from '../lib/geo';
 import { TrainlyRoute } from '../types/models';
 import { RootStackParamList } from '../navigation/types';
+
+const SAO_PAULO: LatLon = { latitude: -23.55, longitude: -46.63 };
 
 const TYPE_ICON: Record<string, string> = {
   Corrida: '🏃',
@@ -31,6 +35,25 @@ export function ExploreRoutesScreen() {
     useCallback(() => {
       reload();
     }, [reload]),
+  );
+
+  // Um marcador por rota, no ponto de largada — visão geral de "onde treinar
+  // por perto", igual ao mapa da aba Explorar do site (explorar.php).
+  const startPoints = useMemo<LatLon[]>(
+    () => routes.filter((r) => r.path?.length).map((r) => ({ latitude: r.path[0][0], longitude: r.path[0][1] })),
+    [routes],
+  );
+  const bounds = useMemo(() => boundsOf(startPoints), [startPoints]);
+  const markers = useMemo<TrainlyMarker[]>(
+    () =>
+      routes
+        .filter((r) => r.path?.length)
+        .map((r) => ({
+          id: r.id,
+          coord: { latitude: r.path[0][0], longitude: r.path[0][1] },
+          variant: 'start' as const,
+        })),
+    [routes],
   );
 
   const renderItem = ({ item }: { item: TrainlyRoute }) => (
@@ -66,7 +89,20 @@ export function ExploreRoutesScreen() {
         contentContainerStyle={styles.list}
         onRefresh={reload}
         refreshing={loading}
-        ListHeaderComponent={<Text style={[styles.header, { color: colors.textPrimary }]}>Explorar Rotas</Text>}
+        ListHeaderComponent={
+          <View>
+            <ScreenHeader title="Explorar" />
+            <View style={[styles.mapWrap, { borderColor: colors.border }]}>
+              <TrainlyMap
+                style={styles.map}
+                bounds={bounds}
+                center={startPoints[0] ?? SAO_PAULO}
+                markers={markers}
+                offlineHint="A lista de rotas abaixo continua disponível — só o desenho do mapa precisa de internet."
+              />
+            </View>
+          </View>
+        }
         ListEmptyComponent={
           !loading ? (
             <Text style={[styles.empty, { color: colors.textMuted }]}>
@@ -95,6 +131,8 @@ function MiniStat({ label, value, colors }: { label: string; value: string; colo
 const styles = StyleSheet.create({
   list: { padding: 20, paddingBottom: 40 },
   header: { fontSize: 24, fontWeight: '900', marginBottom: 16 },
+  mapWrap: { height: 200, borderRadius: 16, overflow: 'hidden', borderWidth: 1, marginBottom: 20 },
+  map: { flex: 1 },
   item: { marginBottom: 14 },
   itemTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   icon: { fontSize: 26 },

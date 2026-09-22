@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTheme } from '../theme/ThemeContext';
 import { DashboardScreen } from '../screens/DashboardScreen';
@@ -12,13 +12,27 @@ import { MainTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-const ICONS: Record<keyof MainTabParamList, string> = {
-  Dashboard: '🏠',
-  Friends: '👥',
-  Clubs: '🏆',
-  Explore: '🗺️',
-  History: '📋',
-  Profile: '👤',
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+// Ícones do mesmo estilo (traço fino, sem preenchimento) usado na navbar do
+// site (includes/nav.php) — trocado do emoji anterior pra ficar consistente
+// com o site e menos "gerado por IA". Preenchido quando a aba está ativa.
+const ICONS_OUTLINE: Record<keyof MainTabParamList, IconName> = {
+  Dashboard: 'home-outline',
+  Friends: 'people-outline',
+  Clubs: 'trophy-outline',
+  Explore: 'map-outline',
+  History: 'time-outline',
+  Profile: 'person-circle-outline',
+};
+
+const ICONS_FILLED: Record<keyof MainTabParamList, IconName> = {
+  Dashboard: 'home',
+  Friends: 'people',
+  Clubs: 'trophy',
+  Explore: 'map',
+  History: 'time',
+  Profile: 'person-circle',
 };
 
 const LABELS: Record<keyof MainTabParamList, string> = {
@@ -45,9 +59,10 @@ export function MainTabs() {
         },
         tabBarLabel: LABELS[route.name as keyof MainTabParamList],
         tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
-        tabBarIcon: ({ color }) => (
-          <Text style={{ fontSize: 16, color }}>{ICONS[route.name as keyof MainTabParamList]}</Text>
-        ),
+        tabBarIcon: ({ color, focused }) => {
+          const name = route.name as keyof MainTabParamList;
+          return <Ionicons name={focused ? ICONS_FILLED[name] : ICONS_OUTLINE[name]} size={22} color={color} />;
+        },
       })}
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />

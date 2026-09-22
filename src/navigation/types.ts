@@ -7,6 +7,7 @@ export type RootStackParamList = {
   /** Perfil público de outro atleta. `name` é só pra preencher o cabeçalho
    *  antes do perfil terminar de carregar. */
   UserProfile: { userId: string; name?: string };
+  Notifications: undefined;
 };
 
 export type MainTabParamList = {

@@ -10,6 +10,7 @@ import { Card } from '../components/Card';
 import { RankWidget } from '../components/RankWidget';
 import { TrainlyButton } from '../components/TrainlyButton';
 import { RegisterActivityModal } from '../components/RegisterActivityModal';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { formatKm, formatKmShort } from '../lib/geo';
 import { RootStackParamList } from '../navigation/types';
 
@@ -58,6 +59,7 @@ export function DashboardScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.primary} />}
     >
+      <ScreenHeader title="Início" />
       <Text style={[styles.greeting, { color: colors.textMuted }]}>Olá,</Text>
       <Text style={[styles.name, { color: colors.textPrimary }]}>{profile?.name ?? '...'}</Text>
 

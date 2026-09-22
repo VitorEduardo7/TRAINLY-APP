@@ -9,6 +9,7 @@ import { useClubs } from '../hooks/useClubs';
 import { Card } from '../components/Card';
 import { TrainlyButton } from '../components/TrainlyButton';
 import { CreateClubModal } from '../components/CreateClubModal';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { Club } from '../types/models';
 import { RootStackParamList } from '../navigation/types';
 
@@ -50,10 +51,10 @@ export function ClubsScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.primary} />}
     >
-      <View style={styles.headerRow}>
-        <Text style={[styles.header, { color: colors.textPrimary }]}>Clubes</Text>
-        <TrainlyButton title="+ Criar" onPress={() => setModalVisible(true)} />
-      </View>
+      <ScreenHeader
+        title="Clubes"
+        right={<TrainlyButton title="+ Criar" onPress={() => setModalVisible(true)} />}
+      />
 
       <Card style={styles.joinCard}>
         <Text style={[styles.joinLabel, { color: colors.textMuted }]}>Entrar em um clube</Text>

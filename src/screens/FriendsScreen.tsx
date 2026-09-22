@@ -21,6 +21,7 @@ import { useFollowing, useFeed, useComments } from '../hooks/useSocial';
 import { Card } from '../components/Card';
 import { TrainlyButton } from '../components/TrainlyButton';
 import { Avatar } from '../components/Avatar';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { formatClock, formatKm, paceMinPerKm } from '../lib/geo';
 import { ActivityComment, FeedActivity, SearchProfile } from '../types/models';
 import { RootStackParamList } from '../navigation/types';
@@ -124,7 +125,7 @@ export function FriendsScreen() {
           />
         }
       >
-        <Text style={[styles.header, { color: colors.textPrimary }]}>Amigos</Text>
+        <ScreenHeader title="Amigos" />
 
         <TextInput
           placeholder="Buscar atletas pelo nome..."
