@@ -1,7 +1,9 @@
-import React from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import React, { useState } from 'react';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from './Typography';
+import { AvatarZoomModal } from './AvatarZoomModal';
+import { tapLight } from '../lib/haptics';
 
 function getInitials(name: string): string {
   return (name || '?')
@@ -38,17 +40,37 @@ interface Props {
   ringColor?: string;
   /** Foto de perfil (se houver) — sem ela, cai pro círculo com iniciais de sempre. */
   uri?: string | null;
+  /** Segurar o avatar abre a foto em tela cheia (só faz sentido quando tem `uri`). */
+  zoomable?: boolean;
 }
 
 // Avatar circular com a foto de perfil (quando existe) ou iniciais do nome —
 // mesmo padrão visual do ProfileScreen, reutilizado em qualquer lugar que
 // mostre outro usuário (busca, feed).
-export function Avatar({ name, size = 40, ringColor, uri }: Props) {
+export function Avatar({ name, size = 40, ringColor, uri, zoomable }: Props) {
+  const [zoomOpen, setZoomOpen] = useState(false);
+
+  const photo = (
+    <Image source={{ uri: uri ?? undefined }} style={[styles.base, { width: size, height: size, borderRadius: size / 2 }]} />
+  );
+
   const circle = uri ? (
-    <Image
-      source={{ uri }}
-      style={[styles.base, { width: size, height: size, borderRadius: size / 2 }]}
-    />
+    zoomable ? (
+      <Pressable
+        onLongPress={() => {
+          tapLight();
+          setZoomOpen(true);
+        }}
+        delayLongPress={280}
+        accessibilityRole="imagebutton"
+        accessibilityLabel="Foto de perfil — segure para ampliar"
+      >
+        {photo}
+        <AvatarZoomModal visible={zoomOpen} uri={uri} onClose={() => setZoomOpen(false)} />
+      </Pressable>
+    ) : (
+      photo
+    )
   ) : (
     <LinearGradient
       colors={paletteFor(name || '?')}

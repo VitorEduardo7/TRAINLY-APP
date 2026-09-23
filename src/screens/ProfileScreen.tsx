@@ -81,7 +81,7 @@ export function ProfileScreen() {
         <ScreenHeader wash="profile" title="Perfil" />
 
         <FadeIn style={styles.header}>
-          <Avatar name={profile?.name ?? '?'} size={88} uri={profile?.avatar_url} ringColor={rankInfo.rank.color} />
+          <Avatar name={profile?.name ?? '?'} size={88} uri={profile?.avatar_url} ringColor={rankInfo.rank.color} zoomable />
           <Text style={[styles.name, { color: colors.textPrimary }]}>{profile?.name}</Text>
           {profile?.location ? (
             <View style={styles.locationRow}>
