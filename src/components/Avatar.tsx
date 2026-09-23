@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from './Typography';
 
@@ -36,12 +36,20 @@ interface Props {
   size?: number;
   /** Anel colorido em volta (ex: cor da patente no perfil). */
   ringColor?: string;
+  /** Foto de perfil (se houver) — sem ela, cai pro círculo com iniciais de sempre. */
+  uri?: string | null;
 }
 
-// Avatar circular com iniciais do nome — mesmo padrão visual do ProfileScreen,
-// reutilizado em qualquer lugar que mostre outro usuário (busca, feed).
-export function Avatar({ name, size = 40, ringColor }: Props) {
-  const circle = (
+// Avatar circular com a foto de perfil (quando existe) ou iniciais do nome —
+// mesmo padrão visual do ProfileScreen, reutilizado em qualquer lugar que
+// mostre outro usuário (busca, feed).
+export function Avatar({ name, size = 40, ringColor, uri }: Props) {
+  const circle = uri ? (
+    <Image
+      source={{ uri }}
+      style={[styles.base, { width: size, height: size, borderRadius: size / 2 }]}
+    />
+  ) : (
     <LinearGradient
       colors={paletteFor(name || '?')}
       start={{ x: 0.15, y: 0 }}

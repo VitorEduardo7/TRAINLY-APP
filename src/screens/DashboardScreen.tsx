@@ -105,7 +105,7 @@ export function DashboardScreen() {
           wash="dashboard"
           subtitle={greetingFor(now)}
           title={firstName || 'Atleta'}
-          leading={<Avatar name={profile?.name ?? '?'} size={46} />}
+          leading={<Avatar name={profile?.name ?? '?'} size={46} uri={profile?.avatar_url} />}
         />
 
         <FadeIn>

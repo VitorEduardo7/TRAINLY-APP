@@ -170,7 +170,7 @@ export function FriendsScreen() {
                       onPress={() => openProfile(person.id, person.name)}
                       style={({ pressed }) => [styles.personTap, pressed && { opacity: 0.6 }]}
                     >
-                      <Avatar name={person.name} size={42} />
+                      <Avatar name={person.name} size={42} uri={person.avatar_url} />
                       <Text style={[styles.personName, { color: colors.textPrimary }]} numberOfLines={1}>
                         {person.name}
                       </Text>
@@ -326,7 +326,7 @@ function FeedCard({
         onPress={() => onOpenProfile(activity.user_id, activity.authorName)}
         style={({ pressed }) => [styles.feedTop, pressed && { opacity: 0.6 }]}
       >
-        <Avatar name={activity.authorName} size={40} />
+        <Avatar name={activity.authorName} size={40} uri={activity.authorAvatarUrl} />
         <View style={{ flex: 1 }}>
           <Text style={[styles.feedAuthor, { color: colors.textPrimary }]} numberOfLines={1}>
             {activity.authorName}
@@ -480,7 +480,7 @@ function CommentRow({
   return (
     <View style={[styles.commentRow, comment.replyToId ? styles.commentRowReply : null]}>
       <Pressable onPress={onOpenProfile} hitSlop={4}>
-        <Avatar name={comment.authorName} size={30} />
+        <Avatar name={comment.authorName} size={30} uri={comment.authorAvatarUrl} />
       </Pressable>
       <View style={{ flex: 1 }}>
         <View style={[styles.commentBubble, { backgroundColor: colors.surface }]}>

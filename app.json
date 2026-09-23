@@ -53,6 +53,13 @@
             "imageWidth": 240
           }
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O Trainly usa suas fotos pra você escolher uma foto de perfil.",
+          "cameraPermission": "O Trainly usa a câmera pra você tirar uma foto de perfil na hora."
+        }
       ]
     ],
     "extra": {

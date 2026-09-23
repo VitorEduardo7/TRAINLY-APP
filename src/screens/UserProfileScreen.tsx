@@ -92,7 +92,7 @@ export function UserProfileScreen() {
       refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.primary} />}
     >
       <FadeIn style={styles.header}>
-        <Avatar name={profile.name} size={88} ringColor={rankInfo.rank.color} />
+        <Avatar name={profile.name} size={88} uri={profile.avatar_url} ringColor={rankInfo.rank.color} />
         <Text style={[styles.name, { color: colors.textPrimary }]}>{profile.name}</Text>
 
         {followsMe && !isMe ? (

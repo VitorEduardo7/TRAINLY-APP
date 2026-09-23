@@ -45,6 +45,7 @@ export function ProfileScreen() {
     location: string;
     bio: string;
     monthlyGoalKm: number;
+    avatarUrl: string | null;
   }) => {
     if (!profile) return;
     const { error } = await supabase
@@ -54,6 +55,7 @@ export function ProfileScreen() {
         location: fields.location || null,
         bio: fields.bio || null,
         monthly_goal_km: fields.monthlyGoalKm,
+        avatar_url: fields.avatarUrl,
       })
       .eq('id', profile.id);
     if (error) throw error;
@@ -79,7 +81,7 @@ export function ProfileScreen() {
         <ScreenHeader wash="profile" title="Perfil" />
 
         <FadeIn style={styles.header}>
-          <Avatar name={profile?.name ?? '?'} size={88} ringColor={rankInfo.rank.color} />
+          <Avatar name={profile?.name ?? '?'} size={88} uri={profile?.avatar_url} ringColor={rankInfo.rank.color} />
           <Text style={[styles.name, { color: colors.textPrimary }]}>{profile?.name}</Text>
           {profile?.location ? (
             <View style={styles.locationRow}>

@@ -74,7 +74,7 @@ export function NotificationsScreen() {
         style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}
       >
         <View>
-          <Avatar name={item.actorName} size={42} />
+          <Avatar name={item.actorName} size={42} uri={item.actorAvatarUrl} />
           <View style={[styles.iconBadge, { backgroundColor: colorFor(item, colors), borderColor: colors.card }]}>
             <Ionicons name={iconFor(item)} size={10} color="#fff" />
           </View>
