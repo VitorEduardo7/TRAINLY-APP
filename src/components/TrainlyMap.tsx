@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import NativeMapView, { Marker as NativeMarker, Polyline as NativePolyline } from 'react-native-maps';
 // Só do caminho público (`from 'react-native-webview'`), nunca de um
 // subcaminho interno como `react-native-webview/lib/WebView` — ver o
@@ -363,7 +364,9 @@ function WebTrainlyMap({
   if (failed) {
     return (
       <View style={[fallbackStyles.fallback, { backgroundColor: colors.card, borderColor: colors.border }, style]}>
-        <Text style={fallbackStyles.icon}>🗺️</Text>
+        <View style={[fallbackStyles.iconCircle, { backgroundColor: colors.primarySoft }]}>
+          <Ionicons name="cloud-offline-outline" size={26} color={colors.primary} />
+        </View>
         <Text style={[fallbackStyles.title, { color: colors.textPrimary }]}>Mapa sem conexão</Text>
         <Text style={[fallbackStyles.body, { color: colors.textMuted }]}>
           {offlineHint ?? 'O desenho do mapa precisa de internet — o resto da tela continua funcionando.'}
@@ -605,7 +608,7 @@ const fallbackStyles = StyleSheet.create({
     padding: 28,
     borderWidth: 1,
   },
-  icon: { fontSize: 40, marginBottom: 14 },
+  iconCircle: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   title: { fontSize: 15.5, fontWeight: '800', textAlign: 'center' },
   body: { fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 8, lineHeight: 18 },
   retry: { marginTop: 18, minWidth: 180 },

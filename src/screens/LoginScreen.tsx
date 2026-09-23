@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
+  Image,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,8 +15,17 @@ import { useTheme } from '../theme/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { TrainlyInput } from '../components/TrainlyInput';
 import { TrainlyButton } from '../components/TrainlyButton';
+import { FadeIn, prefersReducedMotion } from '../components/Motion';
+import { Text } from '../components/Typography';
+import { selection } from '../lib/haptics';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const MARK_ON_DARK = require('../../assets/brand/logo-mark-on-dark.png');
+const MARK_ON_LIGHT = require('../../assets/brand/logo-mark-on-light.png');
+const WORD_ON_DARK = require('../../assets/brand/wordmark-on-dark.png');
+const WORD_ON_LIGHT = require('../../assets/brand/wordmark-on-light.png');
+const GLOW = require('../../assets/brand/glow.png');
 
 // O Supabase Auth devolve as mensagens de erro em inglês — traduz as mais
 // comuns pra manter o app consistente (todo o resto da interface é em
@@ -33,7 +44,7 @@ function translateAuthError(err: any): string {
 }
 
 export function LoginScreen() {
-  const { colors } = useTheme();
+  const { colors, mode: theme } = useTheme();
   const { signIn, signUp } = useAuth();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -44,6 +55,8 @@ export function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const switchMode = (next: 'login' | 'register') => {
+    if (next === mode) return;
+    selection();
     setMode(next);
     setPassword('');
     setConfirmPassword('');
@@ -84,116 +97,172 @@ export function LoginScreen() {
     }
   };
 
+  const dark = theme === 'dark';
+
   return (
     // Tela fora da tab navigator — não tem tab bar embaixo, então cobre topo e fundo.
     <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: colors.background }}>
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.hero}>
-          <Text style={[styles.brand, { color: colors.textPrimary }]}>
-            Train<Text style={{ color: colors.primary }}>ly</Text>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <FadeIn style={styles.hero} offset={20} duration={600}>
+            <Image source={GLOW} style={[styles.glow, { opacity: dark ? 0.55 : 0.22 }]} resizeMode="contain" />
+            <Image source={dark ? MARK_ON_DARK : MARK_ON_LIGHT} style={styles.mark} resizeMode="contain" />
+            <Image source={dark ? WORD_ON_DARK : WORD_ON_LIGHT} style={styles.wordmark} resizeMode="contain" />
+            <Text style={[styles.tagline, { color: colors.textMuted }]}>Treine. Suba de Nível.</Text>
+          </FadeIn>
+
+          <FadeIn delay={120}>
+            <ModeSwitch mode={mode} onChange={switchMode} />
+          </FadeIn>
+
+          <FadeIn delay={200}>
+            {mode === 'register' && (
+              <FadeIn key="name" offset={8} duration={300}>
+                <TrainlyInput
+                  label="Nome completo"
+                  placeholder="Ex: Miguel Bizerra"
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                  icon="person-outline"
+                />
+              </FadeIn>
+            )}
+
+            <TrainlyInput
+              label="E-mail"
+              placeholder="seu@email.com"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              icon="mail-outline"
+            />
+
+            <TrainlyInput
+              label="Senha"
+              placeholder="••••••••"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              icon="lock-closed-outline"
+            />
+
+            {mode === 'register' && (
+              <FadeIn key="confirm" offset={8} duration={300}>
+                <TrainlyInput
+                  label="Confirmar senha"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                  icon="shield-checkmark-outline"
+                />
+              </FadeIn>
+            )}
+          </FadeIn>
+
+          <FadeIn delay={260} style={{ marginTop: 6 }}>
+            <TrainlyButton
+              title={mode === 'login' ? 'Entrar na minha conta' : 'Criar minha conta grátis'}
+              icon={mode === 'login' ? 'log-in-outline' : 'person-add-outline'}
+              onPress={handleSubmit}
+              loading={loading}
+            />
+          </FadeIn>
+
+          <Text style={[styles.footer, { color: colors.textMuted }]}>
+            {mode === 'login' ? 'Ainda não tem conta? ' : 'Já tem uma conta? '}
+            <Text
+              onPress={() => switchMode(mode === 'login' ? 'register' : 'login')}
+              style={{ color: colors.primary, fontWeight: '700' }}
+            >
+              {mode === 'login' ? 'Cadastre-se' : 'Entrar'}
+            </Text>
           </Text>
-          <Text style={[styles.tagline, { color: colors.textMuted }]}>
-            Treine. Suba de Nível.
-          </Text>
-        </View>
-
-        <View style={styles.tabs}>
-          <TabButton label="Entrar" active={mode === 'login'} onPress={() => switchMode('login')} />
-          <TabButton
-            label="Criar Conta"
-            active={mode === 'register'}
-            onPress={() => switchMode('register')}
-          />
-        </View>
-
-        {mode === 'register' && (
-          <TrainlyInput
-            label="Nome completo"
-            placeholder="Ex: Miguel Bizerra"
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-          />
-        )}
-
-        <TrainlyInput
-          label="E-mail"
-          placeholder="seu@email.com"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-
-        <TrainlyInput
-          label="Senha"
-          placeholder="••••••••"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-
-        {mode === 'register' && (
-          <TrainlyInput
-            label="Confirmar senha"
-            placeholder="••••••••"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-          />
-        )}
-
-        <TrainlyButton
-          title={mode === 'login' ? 'Entrar na minha conta' : 'Criar minha conta grátis'}
-          onPress={handleSubmit}
-          loading={loading}
-        />
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-function TabButton({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  const { colors } = useTheme();
+/** Seletor "Entrar / Criar conta" com um fundo que desliza até a opção ativa. */
+function ModeSwitch({ mode, onChange }: { mode: 'login' | 'register'; onChange: (m: 'login' | 'register') => void }) {
+  const { colors, mode: theme } = useTheme();
+  const [width, setWidth] = useState(0);
+  const x = useRef(new Animated.Value(mode === 'login' ? 0 : 1)).current;
+
+  useEffect(() => {
+    const to = mode === 'login' ? 0 : 1;
+    if (prefersReducedMotion()) {
+      x.setValue(to);
+      return;
+    }
+    Animated.spring(x, { toValue: to, useNativeDriver: true, speed: 18, bounciness: 6 }).start();
+  }, [mode, x]);
+
+  const segment = width > 0 ? (width - 8) / 2 : 0;
+
   return (
-    <Text
-      onPress={onPress}
-      style={[
-        styles.tabBtn,
-        {
-          color: active ? colors.primary : colors.textMuted,
-          borderBottomColor: active ? colors.primary : 'transparent',
-        },
-      ]}
+    <View
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      style={[styles.switch, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      accessibilityRole="tablist"
     >
-      {label}
-    </Text>
+      {segment > 0 && (
+        <Animated.View
+          style={[
+            styles.switchThumb,
+            {
+              width: segment,
+              backgroundColor: theme === 'dark' ? colors.card : '#ffffff',
+              transform: [{ translateX: x.interpolate({ inputRange: [0, 1], outputRange: [0, segment] }) }],
+            },
+          ]}
+        />
+      )}
+      {(['login', 'register'] as const).map((m) => {
+        const active = mode === m;
+        return (
+          <Pressable
+            key={m}
+            onPress={() => onChange(m)}
+            style={styles.segment}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+          >
+            <Text style={[styles.segmentText, { color: active ? colors.textPrimary : colors.textMuted }]}>
+              {m === 'login' ? 'Entrar' : 'Criar conta'}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   scroll: { flexGrow: 1, padding: 24, justifyContent: 'center' },
-  hero: { alignItems: 'center', marginBottom: 40 },
-  brand: { fontSize: 34, fontWeight: '900' },
-  tagline: { fontSize: 15, marginTop: 6, fontWeight: '600' },
-  tabs: { flexDirection: 'row', marginBottom: 24, gap: 24 },
-  tabBtn: {
-    fontSize: 15,
-    fontWeight: '700',
-    paddingBottom: 8,
-    borderBottomWidth: 2,
+  hero: { alignItems: 'center', marginBottom: 34 },
+  glow: { position: 'absolute', width: 300, height: 300, top: -70 },
+  mark: { width: 150, height: 100 },
+  wordmark: { width: 170, height: 21, marginTop: 14 },
+  tagline: { fontSize: 14.5, marginTop: 12, fontWeight: '600', letterSpacing: 0.3 },
+  switch: { flexDirection: 'row', padding: 4, borderRadius: 14, borderWidth: 1, marginBottom: 22 },
+  switchThumb: {
+    position: 'absolute',
+    top: 4,
+    bottom: 4,
+    left: 4,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
+  segment: { flex: 1, paddingVertical: 11, alignItems: 'center' },
+  segmentText: { fontSize: 14.5, fontWeight: '700' },
+  footer: { textAlign: 'center', marginTop: 22, fontSize: 13.5, fontWeight: '500' },
 });

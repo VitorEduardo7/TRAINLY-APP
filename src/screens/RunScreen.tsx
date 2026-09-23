@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Linking, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { TrainlyMap, TrainlyMarker } from '../components/TrainlyMap';
@@ -10,6 +10,11 @@ import { useTheme } from '../theme/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useActivities } from '../hooks/useActivities';
 import { TrainlyButton } from '../components/TrainlyButton';
+import { ChipSelector } from '../components/ChipSelector';
+import { StatTile } from '../components/StatTile';
+import { PressableScale, usePulse } from '../components/Motion';
+import { Text } from '../components/Typography';
+import { tapLight, success, warning } from '../lib/haptics';
 import {
   AUTO_PAUSE_AFTER_SEC,
   GpsQuality,
@@ -306,6 +311,7 @@ export function RunScreen() {
         path: pathRef.current.map((p) => [p.latitude, p.longitude] as [number, number]),
       });
       await refreshProfile();
+      success();
       Alert.alert('Trainly', `Atividade salva! Você ganhou ${xp} XP.`, [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
@@ -325,6 +331,7 @@ export function RunScreen() {
       navigation.goBack();
       return;
     }
+    warning();
     Alert.alert('Trainly', 'Sair agora descarta a corrida em andamento. Tem certeza?', [
       { text: 'Continuar corrida', style: 'cancel' },
       {
@@ -358,18 +365,24 @@ export function RunScreen() {
         offlineHint="Sua corrida está sendo gravada normalmente — distância, tempo, ritmo e o trajeto para publicar como rota. Só o desenho do mapa precisa de internet."
       />
 
-      <Pressable
-        onPress={handleClose}
+      <PressableScale
+        onPress={() => {
+          tapLight();
+          handleClose();
+        }}
+        scaleTo={0.9}
         hitSlop={10}
+        accessibilityRole="button"
+        accessibilityLabel="Voltar"
         style={[styles.backBtn, { top: insets.top + 10, backgroundColor: colors.card, borderColor: colors.border }]}
       >
         <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
-      </Pressable>
+      </PressableScale>
 
       {/* paddingBottom soma o inset pra "Pausar"/"Finalizar" não ficarem sob a barra de gestos do celular. */}
       <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border, paddingBottom: 20 + insets.bottom }]}>
         <View style={styles.statusRow}>
-          <View style={[styles.statusDot, { backgroundColor: gpsDotColor }]} />
+          <GpsDot color={gpsDotColor} live={phase === 'running'} />
           <Text style={[styles.gpsStatus, { color: colors.textMuted }]} numberOfLines={1}>
             {gpsInfo.label}
           </Text>
@@ -392,60 +405,21 @@ export function RunScreen() {
         )}
 
         {phase === 'idle' && (
-          <View style={styles.typeRow}>
-            {TRACKABLE_ACTIVITY_KINDS.map((k) => (
-              <Text
-                key={k}
-                onPress={() => setActivityKind(k)}
-                style={[
-                  styles.typeChip,
-                  {
-                    borderColor: k === activityKind ? colors.primary : colors.border,
-                    color: k === activityKind ? colors.primary : colors.textMuted,
-                    backgroundColor: k === activityKind ? `${colors.primary}22` : 'transparent',
-                  },
-                ]}
-              >
-                {k}
-              </Text>
-            ))}
-          </View>
+          <ChipSelector
+            options={TRACKABLE_ACTIVITY_KINDS}
+            value={activityKind}
+            onChange={setActivityKind}
+            style={styles.typeRow}
+          />
         )}
 
-        <View style={styles.statsRow}>
-          <Stat
-            label="Distância"
-            value={`${formatKm(distanceKm)} km`}
-            colorMuted={colors.textMuted}
-            colorMain={colors.textPrimary}
-          />
-          <Stat label="Tempo" value={formatClock(seconds)} colorMuted={colors.textMuted} colorMain={colors.textPrimary} />
-          <Stat
-            label="Ritmo atual"
-            value={`${currentPace}/km`}
-            colorMuted={colors.textMuted}
-            colorMain={colors.textPrimary}
-          />
-        </View>
-        <View style={styles.statsRow}>
-          <Stat
-            label="Ritmo médio"
-            value={`${paceMinPerKm(distanceKm, seconds)}/km`}
-            colorMuted={colors.textMuted}
-            colorMain={colors.textPrimary}
-          />
-          <Stat
-            label="Elevação"
-            value={formatElevation(elevationM)}
-            colorMuted={colors.textMuted}
-            colorMain={colors.textPrimary}
-          />
-          <Stat
-            label="Km completos"
-            value={String(splits.length)}
-            colorMuted={colors.textMuted}
-            colorMain={colors.textPrimary}
-          />
+        <View style={styles.statsGrid}>
+          <StatTile icon="navigate" label="Distância" value={`${formatKm(distanceKm)} km`} />
+          <StatTile icon="time" label="Tempo" value={formatClock(seconds)} />
+          <StatTile icon="speedometer-outline" label="Ritmo atual" value={`${currentPace}/km`} />
+          <StatTile icon="speedometer-outline" label="Ritmo médio" value={`${paceMinPerKm(distanceKm, seconds)}/km`} />
+          <StatTile icon="trending-up" label="Elevação" value={formatElevation(elevationM)} />
+          <StatTile icon="flag-outline" label="Km completos" value={String(splits.length)} />
         </View>
 
         {splits.length > 0 && (
@@ -486,22 +460,16 @@ export function RunScreen() {
   );
 }
 
-function Stat({
-  label,
-  value,
-  colorMuted,
-  colorMain,
-}: {
-  label: string;
-  value: string;
-  colorMuted: string;
-  colorMain: string;
-}) {
+/** Bolinha de status do GPS: cor = qualidade do sinal, "respirando" = gravando de verdade agora. */
+function GpsDot({ color, live }: { color: string; live: boolean }) {
+  const pulse = usePulse(900);
   return (
-    <View style={styles.stat}>
-      <Text style={[styles.statValue, { color: colorMain }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: colorMuted }]}>{label}</Text>
-    </View>
+    <Animated.View
+      style={[
+        styles.statusDot,
+        { backgroundColor: color, opacity: live ? pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }) : 1 },
+      ]}
+    />
   );
 }
 
@@ -527,20 +495,8 @@ const styles = StyleSheet.create({
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   gpsStatus: { fontSize: 12, fontWeight: '600' },
   autoPauseNote: { fontSize: 12, fontWeight: '700', textAlign: 'center', marginBottom: 10 },
-  typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16, justifyContent: 'center' },
-  typeChip: {
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    fontSize: 13,
-    fontWeight: '700',
-    overflow: 'hidden',
-  },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 10 },
-  stat: { alignItems: 'center', minWidth: 84 },
-  statValue: { fontSize: 20, fontWeight: '900' },
-  statLabel: { fontSize: 10.5, fontWeight: '700', marginTop: 4, textTransform: 'uppercase' },
+  typeRow: { marginBottom: 16, justifyContent: 'center' },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
   splitsRow: { marginBottom: 14 },
   splitChip: {
     borderWidth: 1,

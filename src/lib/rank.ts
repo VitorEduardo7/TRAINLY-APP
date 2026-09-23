@@ -71,13 +71,20 @@ export interface RankStep {
   xpAway: number;
 }
 
+// Nome do ícone (Ionicons) de cada patente — sobe de "medalha" até
+// "diamante" conforme o prestígio. Antes eram emojis (🥉🥈🥇💠💎).
 const EMBLEMS: Record<string, string> = {
-  Bronze: '🥉',
-  Prata: '🥈',
-  Ouro: '🥇',
-  Platina: '💠',
-  Diamante: '💎',
+  Bronze: 'medal',
+  Prata: 'medal',
+  Ouro: 'trophy',
+  Platina: 'shield-checkmark',
+  Diamante: 'diamond',
 };
+
+/** Ícone de uma patente pelo nome (ver EMBLEMS). */
+export function emblemFor(rankName: string): string {
+  return EMBLEMS[rankName] ?? 'medal';
+}
 
 /**
  * A trilha inteira de patentes com o estado de cada uma pra um dado XP:
@@ -92,7 +99,7 @@ export function rankTrail(totalXp: number): RankStep[] {
       name: r.name,
       min: r.min,
       color: r.color,
-      emblem: EMBLEMS[r.name] ?? '🏅',
+      emblem: EMBLEMS[r.name] ?? 'medal',
       achieved,
       isCurrent: r.name === current.name,
       levelsAway: achieved ? 0 : r.min - level,

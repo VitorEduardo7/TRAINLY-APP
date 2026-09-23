@@ -147,6 +147,8 @@ supabase/
 
 ## Próximos passos sugeridos (se sobrar tempo até 24/10)
 
-1. Trocar os ícones padrão do Expo pela logo real do Trainly.
-2. Notificações básicas.
-3. Polimento visual (animações, splash screen customizada).
+1. ~~Trocar os ícones padrão do Expo pela logo real do Trainly.~~ **Concluído** — ícone, ícone adaptativo do Android e splash screen usam a arte da marca (`assets/`, `assets/brand/`).
+2. ~~Notificações básicas.~~ **Concluído** — sino de notificações em toda tela (seguidas, curtidas e comentários), com contador de não lidas.
+3. ~~Polimento visual (animações, splash screen customizada).~~ **Concluído** — splash screen animada customizada (`AnimatedSplash.tsx`), sistema de design compartilhado (`Motion`, `Typography`, `StatTile`, `ChipSelector`, `SectionTitle`, `EmptyState`, `Skeleton`, `SportIcon`, fonte Inter), microanimações e haptics em todas as telas, e ícones (Ionicons/SVG) no lugar de emojis em todo o app.
+
+Os três itens da lista original foram concluídos. Ideias para continuar depois da entrega: retrofit dos últimos `Pressable` avulsos em telas já migradas (ex: cards de desafio do clube), e temas alternativos por clube/patente.

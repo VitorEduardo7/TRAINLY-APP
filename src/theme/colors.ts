@@ -16,7 +16,41 @@ export interface TrainlyColors {
   danger: string;
   success: string;
   white: string;
+  /** Superfície um degrau acima do card (chips, campos dentro de um card). */
+  surface: string;
+  /** Primária translúcida — fundo de ícones e destaques suaves. */
+  primarySoft: string;
+  /** Gradiente da marca (botão principal, barras de progresso, destaques). */
+  gradient: readonly [string, string];
+  warning: string;
+  /** Cor da sombra dos cards (só aparece de verdade no tema claro). */
+  shadow: string;
+  /**
+   * "Segundo tom" de destaque do redesign — a pedido do usuário, usa o
+   * próprio azul da marca em vez de uma cor nova (a versão anterior usava um
+   * verde-limão; ficou só a mudança de layout, sem cor nova).
+   */
+  accent: string;
+  accentSoft: string;
+  accentGradient: readonly [string, string];
 }
+
+/**
+ * Par de cores usado nos "blobs" de fundo do cabeçalho (`GradientBackdrop`).
+ * Antes cada aba tinha uma cor própria (coral, dourado, ciano...); a pedido
+ * do usuário isso foi removido — todas usam o mesmo azul da marca agora, só
+ * o formato "hero" arredondado do cabeçalho foi mantido.
+ */
+export const SCREEN_WASH = {
+  dashboard: ['#2f7dfd', '#1f5ee8'],
+  friends: ['#2f7dfd', '#1f5ee8'],
+  clubs: ['#2f7dfd', '#1f5ee8'],
+  explore: ['#2f7dfd', '#1f5ee8'],
+  history: ['#2f7dfd', '#1f5ee8'],
+  profile: ['#2f7dfd', '#1f5ee8'],
+} as const satisfies Record<string, readonly [string, string]>;
+
+export type ScreenWashKey = keyof typeof SCREEN_WASH;
 
 export const darkColors: TrainlyColors = {
   primary: '#2f7dfd',
@@ -30,6 +64,14 @@ export const darkColors: TrainlyColors = {
   danger: '#f0554e',
   success: '#22c55e',
   white: '#ffffff',
+  surface: '#1b1e29',
+  primarySoft: 'rgba(47,125,253,0.14)',
+  gradient: ['#4a93ff', '#1f5ee8'],
+  warning: '#f59e0b',
+  shadow: '#000000',
+  accent: '#2f7dfd',
+  accentSoft: 'rgba(47,125,253,0.14)',
+  accentGradient: ['#4a93ff', '#1f5ee8'],
 };
 
 export const lightColors: TrainlyColors = {
@@ -44,6 +86,14 @@ export const lightColors: TrainlyColors = {
   danger: '#e0473e',
   success: '#22c55e',
   white: '#ffffff',
+  surface: '#f1f3f7',
+  primarySoft: 'rgba(38,124,238,0.10)',
+  gradient: ['#3a8bff', '#1a5fd0'],
+  warning: '#d97706',
+  shadow: '#1b2a4a',
+  accent: '#267cee',
+  accentSoft: 'rgba(38,124,238,0.10)',
+  accentGradient: ['#3a8bff', '#1a5fd0'],
 };
 
 // Cores das patentes, iguais ao js/main.js do site (sistema de XP)
@@ -54,6 +104,48 @@ export const RANKS = [
   { name: 'Platina', min: 15, color: '#2fb6c4' },
   { name: 'Diamante', min: 20, color: '#6366f1' },
 ] as const;
+
+/**
+ * Cor de destaque por modalidade — ajuda a bater o olho numa lista e saber o
+ * que é corrida, pedal, caminhada ou natação sem ler o texto.
+ */
+export const SPORT_COLORS: Record<string, string> = {
+  Corrida: '#2f7dfd',
+  Ciclismo: '#f59e0b',
+  Caminhada: '#22c55e',
+  Natação: '#06b6d4',
+};
+
+/**
+ * Cor de destaque por dificuldade de rota (Fácil/Moderada/Difícil) — usada em
+ * Explorar Rotas e no detalhe da rota, antes duplicada como função local em
+ * cada uma das duas telas.
+ */
+export function difficultyColor(difficulty: string, colors: Pick<TrainlyColors, 'success' | 'primary' | 'danger'>): string {
+  if (difficulty === 'Fácil') return colors.success;
+  if (difficulty === 'Difícil') return colors.danger;
+  return colors.primary;
+}
+
+/** Cor com transparência a partir de um hex `#rrggbb` (ex: fundo de ícone). */
+export function withAlpha(hex: string, alpha: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
+}
+
+/** Clareia um hex `#rrggbb` misturando com branco (0 = igual, 1 = branco). */
+export function lighten(hex: string, amount: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const mixChannel = (c: number) => Math.round(c + (255 - c) * amount);
+  const r = mixChannel((n >> 16) & 255);
+  const g = mixChannel((n >> 8) & 255);
+  const b = mixChannel(n & 255);
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+}
 
 export function getColors(mode: ThemeMode): TrainlyColors {
   return mode === 'dark' ? darkColors : lightColors;

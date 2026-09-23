@@ -1,30 +1,25 @@
 import React, { useCallback, useMemo } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../theme/ThemeContext';
+import { difficultyColor } from '../theme/colors';
 import { useRoutes } from '../hooks/useRoutes';
 import { Card } from '../components/Card';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { SportBadge } from '../components/SportIcon';
+import { FadeIn, PressableScale } from '../components/Motion';
+import { SkeletonCard } from '../components/Skeleton';
+import { EmptyState } from '../components/EmptyState';
+import { Text } from '../components/Typography';
+import { tapLight } from '../lib/haptics';
 import { boundsOf, LatLon, TrainlyMap, TrainlyMarker } from '../components/TrainlyMap';
 import { formatKm } from '../lib/geo';
 import { TrainlyRoute } from '../types/models';
 import { RootStackParamList } from '../navigation/types';
 
 const SAO_PAULO: LatLon = { latitude: -23.55, longitude: -46.63 };
-
-const TYPE_ICON: Record<string, string> = {
-  Corrida: '🏃',
-  Ciclismo: '🚴',
-  Caminhada: '🚶',
-};
-
-function difficultyColor(difficulty: string, colors: { success: string; primary: string; danger: string }) {
-  if (difficulty === 'Fácil') return colors.success;
-  if (difficulty === 'Difícil') return colors.danger;
-  return colors.primary;
-}
 
 export function ExploreRoutesScreen() {
   const { colors } = useTheme();
@@ -56,27 +51,37 @@ export function ExploreRoutesScreen() {
     [routes],
   );
 
-  const renderItem = ({ item }: { item: TrainlyRoute }) => (
-    <Pressable onPress={() => navigation.navigate('RouteDetail', { routeId: item.id })}>
-      <Card style={styles.item}>
-        <View style={styles.itemTop}>
-          <Text style={styles.icon}>{TYPE_ICON[item.type] ?? '🗺️'}</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
-              {item.name}
-            </Text>
-            <Text style={[styles.creator, { color: colors.textMuted }]}>por {item.creator_name}</Text>
-          </View>
-          <Text style={[styles.difficulty, { color: difficultyColor(item.difficulty, colors) }]}>{item.difficulty}</Text>
-        </View>
+  const firstLoad = loading && routes.length === 0 && !error;
 
-        <View style={[styles.statsRow, { borderColor: colors.border }]}>
-          <MiniStat label="Distância" value={`${formatKm(Number(item.distance_km))} km`} colors={colors} />
-          <MiniStat label="Elevação" value={item.elevation_m ? `${item.elevation_m} m` : '—'} colors={colors} />
-          <MiniStat label="Terreno" value={item.terrain || '—'} colors={colors} />
-        </View>
-      </Card>
-    </Pressable>
+  const renderItem = ({ item, index }: { item: TrainlyRoute; index: number }) => (
+    <FadeIn delay={Math.min(index, 5) * 60}>
+      <PressableScale
+        scaleTo={0.98}
+        onPress={() => {
+          tapLight();
+          navigation.navigate('RouteDetail', { routeId: item.id });
+        }}
+      >
+        <Card style={styles.item}>
+          <View style={styles.itemTop}>
+            <SportBadge type={item.type} size={40} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
+                {item.name}
+              </Text>
+              <Text style={[styles.creator, { color: colors.textMuted }]}>por {item.creator_name}</Text>
+            </View>
+            <Text style={[styles.difficulty, { color: difficultyColor(item.difficulty, colors) }]}>{item.difficulty}</Text>
+          </View>
+
+          <View style={[styles.statsRow, { borderColor: colors.border }]}>
+            <MiniStat label="Distância" value={`${formatKm(Number(item.distance_km))} km`} colors={colors} />
+            <MiniStat label="Elevação" value={item.elevation_m ? `${item.elevation_m} m` : '—'} colors={colors} />
+            <MiniStat label="Terreno" value={item.terrain || '—'} colors={colors} />
+          </View>
+        </Card>
+      </PressableScale>
+    </FadeIn>
   );
 
   return (
@@ -91,7 +96,7 @@ export function ExploreRoutesScreen() {
         refreshing={loading}
         ListHeaderComponent={
           <View>
-            <ScreenHeader title="Explorar" />
+            <ScreenHeader wash="explore" title="Explorar" />
             <View style={[styles.mapWrap, { borderColor: colors.border }]}>
               <TrainlyMap
                 style={styles.map}
@@ -101,15 +106,25 @@ export function ExploreRoutesScreen() {
                 offlineHint="A lista de rotas abaixo continua disponível — só o desenho do mapa precisa de internet."
               />
             </View>
+            {firstLoad && (
+              <>
+                <SkeletonCard />
+                <SkeletonCard />
+              </>
+            )}
           </View>
         }
         ListEmptyComponent={
-          !loading ? (
-            <Text style={[styles.empty, { color: colors.textMuted }]}>
-              {error
-                ? 'Não foi possível carregar — puxe a tela pra baixo pra tentar de novo.'
-                : 'Nenhuma rota publicada ainda. Termine uma atividade por GPS e publique ela como rota lá no Histórico.'}
-            </Text>
+          !firstLoad ? (
+            <EmptyState
+              icon={error ? 'cloud-offline-outline' : 'map-outline'}
+              title={error ? 'Não foi possível carregar' : 'Nenhuma rota publicada ainda'}
+              message={
+                error
+                  ? 'Puxe a tela pra baixo pra tentar de novo.'
+                  : 'Termine uma atividade por GPS e publique ela como rota lá no Histórico.'
+              }
+            />
           ) : null
         }
       />
@@ -129,18 +144,15 @@ function MiniStat({ label, value, colors }: { label: string; value: string; colo
 }
 
 const styles = StyleSheet.create({
-  list: { padding: 20, paddingBottom: 40 },
-  header: { fontSize: 24, fontWeight: '900', marginBottom: 16 },
-  mapWrap: { height: 200, borderRadius: 16, overflow: 'hidden', borderWidth: 1, marginBottom: 20 },
+  list: { padding: 20, paddingBottom: 130 },
+  mapWrap: { height: 200, borderRadius: 24, overflow: 'hidden', borderWidth: 1, marginBottom: 20 },
   map: { flex: 1 },
   item: { marginBottom: 14 },
   itemTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  icon: { fontSize: 26 },
   name: { fontSize: 15, fontWeight: '700' },
   creator: { fontSize: 12, marginTop: 2, fontWeight: '600' },
   difficulty: { fontSize: 12, fontWeight: '800' },
   statsRow: { flexDirection: 'row', borderTopWidth: 1, paddingTop: 12 },
   miniValue: { fontSize: 13.5, fontWeight: '800' },
   miniLabel: { fontSize: 10.5, fontWeight: '600', marginTop: 3, textTransform: 'uppercase' },
-  empty: { textAlign: 'center', marginTop: 60, fontSize: 13.5, lineHeight: 19, paddingHorizontal: 10 },
 });

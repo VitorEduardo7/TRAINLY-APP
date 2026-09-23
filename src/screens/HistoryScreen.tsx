@@ -1,9 +1,11 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
+import { withAlpha } from '../theme/colors';
 import { useAuth } from '../hooks/useAuth';
 import { useActivities } from '../hooks/useActivities';
 import { useRoutes } from '../hooks/useRoutes';
@@ -11,16 +13,15 @@ import { Card } from '../components/Card';
 import { TrainlyButton } from '../components/TrainlyButton';
 import { PublishRouteModal } from '../components/PublishRouteModal';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { SportBadge } from '../components/SportIcon';
+import { FadeIn, PressableScale } from '../components/Motion';
+import { SkeletonCard } from '../components/Skeleton';
+import { EmptyState } from '../components/EmptyState';
+import { Text } from '../components/Typography';
+import { tapLight, success } from '../lib/haptics';
 import { formatClock, formatKm, paceMinPerKm } from '../lib/geo';
 import { Activity, RouteDifficulty, RouteType } from '../types/models';
 import { RootStackParamList } from '../navigation/types';
-
-const TYPE_ICON: Record<string, string> = {
-  Corrida: '🏃',
-  Ciclismo: '🚴',
-  Natação: '🏊',
-  Caminhada: '🚶',
-};
 
 const ROUTE_TYPES: RouteType[] = ['Corrida', 'Ciclismo', 'Caminhada'];
 
@@ -65,6 +66,7 @@ export function HistoryScreen() {
   const explainBlock = (item: Activity) => {
     const reason = blockReason(item);
     if (!reason) return;
+    tapLight();
     const isTypeIssue = !(ROUTE_TYPES as string[]).includes(item.type);
     Alert.alert(
       'Não dá pra publicar essa',
@@ -89,6 +91,7 @@ export function HistoryScreen() {
         elevationM: publishing.elevation_m,
         path: publishing.path,
       });
+      success();
       // No iOS o Alert é apresentado pelo mesmo controlador do <Modal>, então
       // mostrar ele aqui (com o modal ainda montado) fazia o aviso sumir junto
       // com o modal, sem o usuário ver. Espera a animação de fechar terminar.
@@ -100,70 +103,77 @@ export function HistoryScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: Activity }) => (
-    <Card style={styles.item}>
-      <View style={styles.itemTop}>
-        <Text style={styles.icon}>{TYPE_ICON[item.type] ?? '🏅'}</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>{item.title || item.type}</Text>
-          <Text style={[styles.date, { color: colors.textMuted }]}>
-            {new Date(item.date).toLocaleDateString('pt-BR', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
-            })}
-          </Text>
-        </View>
-        <Text style={[styles.xp, { color: colors.primary }]}>+{item.xp_earned} XP</Text>
-      </View>
+  const firstLoad = loading && activities.length === 0 && !error;
 
-      <View style={[styles.statsRow, { borderColor: colors.border }]}>
-        <MiniStat label="Distância" value={`${formatKm(Number(item.distance_km))} km`} colors={colors} />
-        <MiniStat label="Tempo" value={formatClock(item.duration_sec)} colors={colors} />
-        <MiniStat
-          label="Ritmo"
-          value={`${paceMinPerKm(Number(item.distance_km), item.duration_sec)}/km`}
-          colors={colors}
-        />
-        {item.elevation_m ? (
-          <MiniStat label="Elevação" value={`${item.elevation_m} m`} colors={colors} />
-        ) : null}
-      </View>
+  const renderItem = ({ item, index }: { item: Activity; index: number }) => {
+    const published = publishedRouteFor(item);
+    return (
+      <FadeIn delay={Math.min(index, 5) * 60}>
+        <Card style={styles.item}>
+          <View style={styles.itemTop}>
+            <SportBadge type={item.type} size={40} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.title, { color: colors.textPrimary }]}>{item.title || item.type}</Text>
+              <Text style={[styles.date, { color: colors.textMuted }]}>
+                {new Date(item.date).toLocaleDateString('pt-BR', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+              </Text>
+            </View>
+            <Text style={[styles.xp, { color: colors.accent }]}>+{item.xp_earned} XP</Text>
+          </View>
 
-      <View style={{ marginTop: 12 }}>
-        {publishedRouteFor(item) ? (
-          <Pressable
-            onPress={() => navigation.navigate('RouteDetail', { routeId: publishedRouteFor(item)!.id })}
-            style={({ pressed }) => [
-              styles.publishedBtn,
-              { borderColor: colors.success, backgroundColor: `${colors.success}18` },
-              pressed && { opacity: 0.6 },
-            ]}
-          >
-            <Text style={[styles.publishedBtnText, { color: colors.success }]}>✓ Publicada como rota — ver no mapa</Text>
-          </Pressable>
-        ) : canPublish(item) ? (
-          <TrainlyButton title="Publicar como rota" variant="secondary" onPress={() => setPublishing(item)} />
-        ) : (
-          <>
-            <Pressable
-              onPress={() => explainBlock(item)}
-              style={({ pressed }) => [
-                styles.lockedBtn,
-                { borderColor: colors.border },
-                pressed && { opacity: 0.6 },
-              ]}
-            >
-              <Text style={[styles.lockedBtnText, { color: colors.textMuted }]}>🔒 Publicar como rota</Text>
-            </Pressable>
-            <Text style={[styles.lockedHint, { color: colors.textMuted }]}>
-              {blockReason(item)} Toque pra entender.
-            </Text>
-          </>
-        )}
-      </View>
-    </Card>
-  );
+          <View style={[styles.statsRow, { borderColor: colors.border }]}>
+            <MiniStat label="Distância" value={`${formatKm(Number(item.distance_km))} km`} colors={colors} />
+            <MiniStat label="Tempo" value={formatClock(item.duration_sec)} colors={colors} />
+            <MiniStat
+              label="Ritmo"
+              value={`${paceMinPerKm(Number(item.distance_km), item.duration_sec)}/km`}
+              colors={colors}
+            />
+            {item.elevation_m ? <MiniStat label="Elevação" value={`${item.elevation_m} m`} colors={colors} /> : null}
+          </View>
+
+          <View style={{ marginTop: 12 }}>
+            {published ? (
+              <PressableScale
+                scaleTo={0.98}
+                onPress={() => {
+                  tapLight();
+                  navigation.navigate('RouteDetail', { routeId: published.id });
+                }}
+                style={[
+                  styles.publishedBtn,
+                  { borderColor: colors.success, backgroundColor: withAlpha(colors.success, 0.1) },
+                ]}
+              >
+                <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                <Text style={[styles.publishedBtnText, { color: colors.success }]}>Publicada como rota — ver no mapa</Text>
+              </PressableScale>
+            ) : canPublish(item) ? (
+              <TrainlyButton title="Publicar como rota" variant="secondary" onPress={() => setPublishing(item)} />
+            ) : (
+              <>
+                <PressableScale
+                  scaleTo={0.98}
+                  onPress={() => explainBlock(item)}
+                  style={[styles.lockedBtn, { borderColor: colors.border }]}
+                >
+                  <Ionicons name="lock-closed-outline" size={15} color={colors.textMuted} />
+                  <Text style={[styles.lockedBtnText, { color: colors.textMuted }]}>Publicar como rota</Text>
+                </PressableScale>
+                <Text style={[styles.lockedHint, { color: colors.textMuted }]}>
+                  {blockReason(item)} Toque pra entender.
+                </Text>
+              </>
+            )}
+          </View>
+        </Card>
+      </FadeIn>
+    );
+  };
 
   return (
     // Só o topo — a tab bar de baixo já respeita a área segura inferior sozinha.
@@ -175,14 +185,28 @@ export function HistoryScreen() {
         contentContainerStyle={styles.list}
         onRefresh={reload}
         refreshing={loading}
-        ListHeaderComponent={<ScreenHeader title="Histórico" />}
+        ListHeaderComponent={
+          <View>
+            <ScreenHeader wash="history" title="Histórico" />
+            {firstLoad && (
+              <>
+                <SkeletonCard />
+                <SkeletonCard />
+              </>
+            )}
+          </View>
+        }
         ListEmptyComponent={
-          !loading ? (
-            <Text style={[styles.empty, { color: colors.textMuted }]}>
-              {error
-                ? 'Não foi possível carregar — puxe a tela pra baixo pra tentar de novo.'
-                : 'Nenhuma atividade registrada ainda.'}
-            </Text>
+          !firstLoad ? (
+            <EmptyState
+              icon={error ? 'cloud-offline-outline' : 'time-outline'}
+              title={error ? 'Não foi possível carregar' : 'Nenhuma atividade registrada ainda'}
+              message={
+                error
+                  ? 'Puxe a tela pra baixo pra tentar de novo.'
+                  : 'Toque em "Iniciar corrida" ou registre um treino feito em outro dia.'
+              }
+            />
           ) : null
         }
       />
@@ -209,16 +233,16 @@ function MiniStat({ label, value, colors }: { label: string; value: string; colo
 }
 
 const styles = StyleSheet.create({
-  list: { padding: 20, paddingBottom: 40 },
-  header: { fontSize: 24, fontWeight: '900', marginBottom: 16 },
+  list: { padding: 20, paddingBottom: 130 },
   item: { marginBottom: 14 },
   itemTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  icon: { fontSize: 26 },
   title: { fontSize: 15, fontWeight: '700' },
   date: { fontSize: 12, marginTop: 2, fontWeight: '600' },
   xp: { fontSize: 13, fontWeight: '800' },
   statsRow: { flexDirection: 'row', borderTopWidth: 1, paddingTop: 12 },
   lockedBtn: {
+    flexDirection: 'row',
+    gap: 7,
     borderRadius: 12,
     borderWidth: 1,
     borderStyle: 'dashed',
@@ -228,6 +252,8 @@ const styles = StyleSheet.create({
   },
   lockedBtnText: { fontSize: 14.5, fontWeight: '700' },
   publishedBtn: {
+    flexDirection: 'row',
+    gap: 7,
     borderRadius: 12,
     borderWidth: 1,
     paddingVertical: 14,
@@ -238,5 +264,4 @@ const styles = StyleSheet.create({
   lockedHint: { fontSize: 11.5, fontWeight: '600', marginTop: 8, textAlign: 'center', lineHeight: 16 },
   miniValue: { fontSize: 14, fontWeight: '800' },
   miniLabel: { fontSize: 10.5, fontWeight: '600', marginTop: 3, textTransform: 'uppercase' },
-  empty: { textAlign: 'center', marginTop: 60, fontSize: 14 },
 });

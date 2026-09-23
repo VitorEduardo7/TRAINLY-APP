@@ -1,11 +1,16 @@
 import React, { useCallback } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { Avatar } from '../components/Avatar';
+import { FadeIn, PressableScale } from '../components/Motion';
+import { SkeletonRow } from '../components/Skeleton';
+import { EmptyState } from '../components/EmptyState';
+import { Text } from '../components/Typography';
+import { tapLight } from '../lib/haptics';
 import { useNotifications, TrainlyNotification } from '../hooks/useNotifications';
 import { RootStackParamList } from '../navigation/types';
 
@@ -36,6 +41,14 @@ function iconFor(n: TrainlyNotification): IconName {
   return 'chatbubble';
 }
 
+/** Cor do selinho do ícone — uma por tipo, pra dar de relance pra diferenciar
+ * seguidor/curtida/comentário sem precisar ler o texto. */
+function colorFor(n: TrainlyNotification, colors: { primary: string; danger: string; success: string }): string {
+  if (n.kind === 'follow') return colors.primary;
+  if (n.kind === 'like') return colors.danger;
+  return colors.success;
+}
+
 export function NotificationsScreen() {
   const { colors } = useTheme();
   const { items, loading, reload, markAllRead } = useNotifications();
@@ -50,22 +63,28 @@ export function NotificationsScreen() {
     }, [reload, markAllRead]),
   );
 
-  const renderItem = ({ item }: { item: TrainlyNotification }) => (
-    <Pressable
-      style={[styles.row, { borderColor: colors.border }]}
-      onPress={() => navigation.navigate('UserProfile', { userId: item.actorId, name: item.actorName })}
-    >
-      <View>
-        <Avatar name={item.actorName} size={42} />
-        <View style={[styles.iconBadge, { backgroundColor: colors.primary, borderColor: colors.background }]}>
-          <Ionicons name={iconFor(item)} size={10} color="#fff" />
+  const renderItem = ({ item, index }: { item: TrainlyNotification; index: number }) => (
+    <FadeIn delay={Math.min(index, 6) * 40} offset={8}>
+      <PressableScale
+        scaleTo={0.98}
+        onPress={() => {
+          tapLight();
+          navigation.navigate('UserProfile', { userId: item.actorId, name: item.actorName });
+        }}
+        style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}
+      >
+        <View>
+          <Avatar name={item.actorName} size={42} />
+          <View style={[styles.iconBadge, { backgroundColor: colorFor(item, colors), borderColor: colors.card }]}>
+            <Ionicons name={iconFor(item)} size={10} color="#fff" />
+          </View>
         </View>
-      </View>
-      <View style={{ flex: 1, marginLeft: 14 }}>
-        <Text style={[styles.text, { color: colors.textPrimary }]}>{textFor(item)}</Text>
-        <Text style={[styles.time, { color: colors.textMuted }]}>{timeAgo(item.createdAt)}</Text>
-      </View>
-    </Pressable>
+        <View style={{ flex: 1, marginLeft: 14 }}>
+          <Text style={[styles.text, { color: colors.textPrimary }]}>{textFor(item)}</Text>
+          <Text style={[styles.time, { color: colors.textMuted }]}>{timeAgo(item.createdAt)}</Text>
+        </View>
+      </PressableScale>
+    </FadeIn>
   );
 
   return (
@@ -78,11 +97,19 @@ export function NotificationsScreen() {
         refreshing={loading}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
-          !loading ? (
-            <Text style={[styles.empty, { color: colors.textMuted }]}>
-              Nada por aqui ainda — curtidas, comentários e novos seguidores aparecem nesta tela.
-            </Text>
-          ) : null
+          loading ? (
+            <View style={{ paddingTop: 8 }}>
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+            </View>
+          ) : (
+            <EmptyState
+              icon="notifications-outline"
+              title="Nada por aqui ainda"
+              message="Curtidas, comentários e novos seguidores aparecem nesta tela."
+            />
+          )
         }
       />
     </SafeAreaView>
@@ -90,8 +117,16 @@ export function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  list: { paddingVertical: 8, flexGrow: 1 },
-  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1 },
+  list: { padding: 16, flexGrow: 1 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
   iconBadge: {
     position: 'absolute',
     right: -2,
@@ -105,5 +140,4 @@ const styles = StyleSheet.create({
   },
   text: { fontSize: 13.5, fontWeight: '600', lineHeight: 18 },
   time: { fontSize: 11, fontWeight: '600', marginTop: 3 },
-  empty: { textAlign: 'center', marginTop: 60, fontSize: 13.5, lineHeight: 19, paddingHorizontal: 30 },
 });

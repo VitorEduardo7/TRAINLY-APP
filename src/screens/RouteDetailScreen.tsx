@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 import { boundsOf, LatLon, TrainlyMap, TrainlyMarker } from '../components/TrainlyMap';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -7,7 +7,12 @@ import { useTheme } from '../theme/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useRouteDetail, useRoutes } from '../hooks/useRoutes';
 import { TrainlyButton } from '../components/TrainlyButton';
+import { StatTile } from '../components/StatTile';
+import { FadeIn } from '../components/Motion';
+import { Text } from '../components/Typography';
 import { formatKm } from '../lib/geo';
+import { difficultyColor } from '../theme/colors';
+import { warning } from '../lib/haptics';
 import { RootStackParamList } from '../navigation/types';
 import type { TrainlyRoute } from '../types/models';
 
@@ -57,6 +62,7 @@ function RouteDetail({ route }: { route: TrainlyRoute }) {
   const isOwner = profile?.id === route.created_by;
 
   const handleDelete = () => {
+    warning();
     Alert.alert('Trainly', 'Apagar essa rota publicada?', [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -89,16 +95,32 @@ function RouteDetail({ route }: { route: TrainlyRoute }) {
         offlineHint="O trajeto desta rota está salvo — os dados abaixo são dela. Só o desenho do mapa precisa de internet."
       />
 
-      <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <FadeIn style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.name, { color: colors.textPrimary }]}>{route.name}</Text>
         <Text style={[styles.creator, { color: colors.textMuted }]}>
           por {route.creator_name} · {route.type}
         </Text>
 
         <View style={styles.statsRow}>
-          <Stat label="Distância" value={`${formatKm(Number(route.distance_km))} km`} colors={colors} />
-          <Stat label="Elevação" value={route.elevation_m ? `${route.elevation_m} m` : '—'} colors={colors} />
-          <Stat label="Dificuldade" value={route.difficulty} colors={colors} />
+          <StatTile
+            icon="navigate"
+            label="Distância"
+            value={`${formatKm(Number(route.distance_km))} km`}
+            style={styles.tile}
+          />
+          <StatTile
+            icon="trending-up"
+            label="Elevação"
+            value={route.elevation_m ? `${route.elevation_m} m` : '—'}
+            style={styles.tile}
+          />
+          <StatTile
+            icon="speedometer-outline"
+            label="Dificuldade"
+            value={route.difficulty}
+            tint={difficultyColor(route.difficulty, colors)}
+            style={styles.tile}
+          />
         </View>
         {route.terrain ? (
           <Text style={[styles.terrain, { color: colors.textMuted }]}>Terreno: {route.terrain}</Text>
@@ -109,18 +131,7 @@ function RouteDetail({ route }: { route: TrainlyRoute }) {
             <TrainlyButton title="Apagar rota" variant="danger" onPress={handleDelete} loading={deleting} />
           </View>
         )}
-      </View>
-    </View>
-  );
-}
-
-function Stat({ label, value, colors }: { label: string; value: string; colors: any }) {
-  return (
-    <View style={styles.stat}>
-      <Text style={[styles.statValue, { color: colors.textPrimary }]} numberOfLines={1}>
-        {value}
-      </Text>
-      <Text style={[styles.statLabel, { color: colors.textMuted }]}>{label}</Text>
+      </FadeIn>
     </View>
   );
 }
@@ -128,12 +139,10 @@ function Stat({ label, value, colors }: { label: string; value: string; colors: 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   map: { flex: 1 },
-  panel: { borderTopLeftRadius: 20, borderTopRightRadius: 20, borderWidth: 1, padding: 20 },
+  panel: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: 20 },
   name: { fontSize: 19, fontWeight: '900' },
   creator: { fontSize: 12.5, fontWeight: '600', marginTop: 4, marginBottom: 16 },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-around' },
-  stat: { alignItems: 'center', minWidth: 84 },
-  statValue: { fontSize: 17, fontWeight: '900' },
-  statLabel: { fontSize: 10.5, fontWeight: '700', marginTop: 4, textTransform: 'uppercase' },
+  statsRow: { flexDirection: 'row', gap: 8 },
+  tile: { flexBasis: '30%' },
   terrain: { fontSize: 12.5, fontWeight: '600', marginTop: 14, textAlign: 'center' },
 });

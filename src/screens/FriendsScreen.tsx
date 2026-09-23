@@ -1,39 +1,40 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
+import { withAlpha, SCREEN_WASH } from '../theme/colors';
 import { useAuth } from '../hooks/useAuth';
 import { useFollowing, useFeed, useComments } from '../hooks/useSocial';
 import { Card } from '../components/Card';
 import { TrainlyButton } from '../components/TrainlyButton';
 import { Avatar } from '../components/Avatar';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { SectionTitle } from '../components/SectionTitle';
+import { SportGlyph, sportColor } from '../components/SportIcon';
+import { FadeIn, prefersReducedMotion } from '../components/Motion';
+import { SkeletonCard } from '../components/Skeleton';
+import { EmptyState } from '../components/EmptyState';
+import { Text, TextInput } from '../components/Typography';
+import { selection, tapLight, warning } from '../lib/haptics';
 import { formatClock, formatKm, paceMinPerKm } from '../lib/geo';
 import { ActivityComment, FeedActivity, SearchProfile } from '../types/models';
 import { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
-
-const TYPE_ICON: Record<string, string> = {
-  Corrida: '🏃',
-  Ciclismo: '🚴',
-  Natação: '🏊',
-  Caminhada: '🚶',
-};
 
 function timeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -61,6 +62,7 @@ export function FriendsScreen() {
   } = useFollowing(profile?.id);
   const { feed, loading, error, toggleLike, reload: reloadFeed } = useFeed(profile?.id, followingIds);
   const [query, setQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const navigation = useNavigation<Nav>();
 
@@ -101,94 +103,133 @@ export function FriendsScreen() {
     }
   };
 
+  const firstLoad = loading && feed.length === 0 && !error;
+
   return (
     // Só o topo — a tab bar de baixo já respeita a área segura inferior sozinha.
     // Sem isso, o título "Amigos" ficava embaixo da barra de status/notch no
     // iPhone: era a única aba que não tinha SafeAreaView.
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.background }}>
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={
-          <RefreshControl
-            refreshing={loading}
-            onRefresh={() => {
-              reloadFollowing();
-              reloadFeed();
-            }}
-            tintColor={colors.primary}
-          />
-        }
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: colors.background }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <ScreenHeader title="Amigos" />
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={loading}
+              onRefresh={() => {
+                reloadFollowing();
+                reloadFeed();
+              }}
+              tintColor={colors.primary}
+            />
+          }
+        >
+          <ScreenHeader wash="friends" title="Amigos" />
 
-        <TextInput
-          placeholder="Buscar atletas pelo nome..."
-          placeholderTextColor={colors.textMuted}
-          value={query}
-          onChangeText={setQuery}
-          style={[styles.search, { backgroundColor: colors.card, borderColor: colors.border, color: colors.textPrimary }]}
-        />
-
-        {query.trim().length > 0 && (
-          <View style={{ marginBottom: 10 }}>
-            {searching && <Text style={[styles.empty, { color: colors.textMuted }]}>Buscando...</Text>}
-            {!searching && results.length === 0 && (
-              <Text style={[styles.empty, { color: colors.textMuted }]}>Ninguém encontrado com esse nome.</Text>
+          <View
+            style={[
+              styles.searchBox,
+              { backgroundColor: colors.card, borderColor: searchFocused ? SCREEN_WASH.friends[0] : colors.border },
+            ]}
+          >
+            <Ionicons name="search" size={18} color={searchFocused ? SCREEN_WASH.friends[0] : colors.textMuted} />
+            <TextInput
+              placeholder="Buscar atletas pelo nome..."
+              placeholderTextColor={colors.textMuted}
+              value={query}
+              onChangeText={setQuery}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              returnKeyType="search"
+              style={[styles.searchInput, { color: colors.textPrimary }]}
+            />
+            {query.length > 0 && (
+              <Pressable onPress={() => setQuery('')} hitSlop={10} accessibilityLabel="Limpar busca">
+                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+              </Pressable>
             )}
-            {results.map((person) => (
-              <Card key={person.id} style={styles.personCard}>
-                {/* Toque no avatar/nome abre o perfil; o botão de seguir fica
-                    fora do Pressable pra os dois toques não se atrapalharem. */}
-                <Pressable
-                  onPress={() => openProfile(person.id, person.name)}
-                  style={({ pressed }) => [styles.personTap, pressed && { opacity: 0.6 }]}
-                >
-                  <Avatar name={person.name} size={40} />
-                  <Text style={[styles.personName, { color: colors.textPrimary }]} numberOfLines={1}>
-                    {person.name}
-                  </Text>
-                </Pressable>
-                <TrainlyButton
-                  title={person.isFollowing ? 'Seguindo' : 'Seguir'}
-                  variant={person.isFollowing ? 'secondary' : 'primary'}
-                  onPress={() => handleToggleFollow(person)}
-                  loading={busyId === person.id}
-                />
-              </Card>
-            ))}
-
           </View>
-        )}
 
-        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Feed de Amigos</Text>
+          {query.trim().length > 0 && (
+            <View style={{ marginBottom: 14 }}>
+              {searching && <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />}
+              {!searching && results.length === 0 && (
+                <EmptyState compact icon="person-outline" title="Ninguém encontrado" message="Confira o nome e tente de novo." />
+              )}
+              {results.map((person, i) => (
+                <FadeIn key={person.id} delay={Math.min(i, 5) * 40} offset={8}>
+                  <Card style={styles.personCard}>
+                    {/* Toque no avatar/nome abre o perfil; o botão de seguir fica
+                        fora do Pressable pra os dois toques não se atrapalharem. */}
+                    <Pressable
+                      onPress={() => openProfile(person.id, person.name)}
+                      style={({ pressed }) => [styles.personTap, pressed && { opacity: 0.6 }]}
+                    >
+                      <Avatar name={person.name} size={42} />
+                      <Text style={[styles.personName, { color: colors.textPrimary }]} numberOfLines={1}>
+                        {person.name}
+                      </Text>
+                    </Pressable>
+                    <TrainlyButton
+                      size="sm"
+                      title={person.isFollowing ? 'Seguindo' : 'Seguir'}
+                      icon={person.isFollowing ? 'checkmark' : 'person-add-outline'}
+                      variant={person.isFollowing ? 'secondary' : 'primary'}
+                      onPress={() => handleToggleFollow(person)}
+                      loading={busyId === person.id}
+                    />
+                  </Card>
+                </FadeIn>
+              ))}
+            </View>
+          )}
 
-        {!loading && feed.length === 0 && (
-          <Text style={[styles.empty, { color: colors.textMuted }]}>
-            {error
-              ? 'Não foi possível carregar o feed — puxe a tela pra baixo pra tentar de novo.'
-              : followingIds.size === 0
-                ? 'Você ainda não segue ninguém. Busque acima pra começar.'
-                : 'Ninguém que você segue registrou atividade ainda.'}
-          </Text>
-        )}
+          <SectionTitle title="Feed de amigos" />
 
-        {feed.map((activity) => (
-          <FeedCard
-            key={activity.id}
-            activity={activity}
-            currentUserId={profile?.id}
-            onToggleLike={() => toggleLike(activity)}
-            onOpenProfile={openProfile}
-          />
-        ))}
-      </ScrollView>
-    </KeyboardAvoidingView>
+          {firstLoad && (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          )}
+
+          {!loading && feed.length === 0 && (
+            <EmptyState
+              icon={error ? 'cloud-offline-outline' : 'people-outline'}
+              title={
+                error
+                  ? 'Não foi possível carregar o feed'
+                  : followingIds.size === 0
+                    ? 'Seu feed está vazio'
+                    : 'Nada novo por aqui'
+              }
+              message={
+                error
+                  ? 'Puxe a tela pra baixo pra tentar de novo.'
+                  : followingIds.size === 0
+                    ? 'Você ainda não segue ninguém. Busque atletas pelo nome acima pra começar.'
+                    : 'Ninguém que você segue registrou atividade ainda.'
+              }
+            />
+          )}
+
+          {feed.map((activity, i) => (
+            <FadeIn key={activity.id} delay={Math.min(i, 4) * 60}>
+              <FeedCard
+                activity={activity}
+                currentUserId={profile?.id}
+                onToggleLike={() => toggleLike(activity)}
+                onOpenProfile={openProfile}
+              />
+            </FadeIn>
+          ))}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -232,6 +273,7 @@ function FeedCard({
 
   const toggleComments = () => {
     const next = !commentsOpen;
+    selection();
     setCommentsOpen(next);
     // Recarrega toda vez que abre, não só na primeira vez — sem isso, um
     // comentário novo de outra pessoa (ou uma falha de rede na primeira
@@ -254,6 +296,7 @@ function FeedCard({
   };
 
   const handleDelete = (comment: ActivityComment) => {
+    warning();
     Alert.alert('Trainly', 'Apagar esse comentário?', [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -275,48 +318,54 @@ function FeedCard({
     ]);
   };
 
+  const typeColor = sportColor(activity.type);
+
   return (
     <Card style={styles.feedCard}>
       <Pressable
         onPress={() => onOpenProfile(activity.user_id, activity.authorName)}
         style={({ pressed }) => [styles.feedTop, pressed && { opacity: 0.6 }]}
       >
-        <Avatar name={activity.authorName} size={38} />
+        <Avatar name={activity.authorName} size={40} />
         <View style={{ flex: 1 }}>
-          <Text style={[styles.feedAuthor, { color: colors.textPrimary }]}>{activity.authorName}</Text>
-          <Text style={[styles.feedMeta, { color: colors.textMuted }]}>
-            {timeAgo(activity.date)} · {TYPE_ICON[activity.type] ?? '🏅'} {activity.type}
+          <Text style={[styles.feedAuthor, { color: colors.textPrimary }]} numberOfLines={1}>
+            {activity.authorName}
           </Text>
+          <Text style={[styles.feedMeta, { color: colors.textMuted }]}>{timeAgo(activity.date)}</Text>
         </View>
-        <Text style={[styles.feedChevron, { color: colors.textMuted }]}>›</Text>
+        <View style={[styles.typeChip, { backgroundColor: withAlpha(typeColor, 0.13) }]}>
+          <SportGlyph type={activity.type} size={14} color={typeColor} />
+          <Text style={[styles.typeChipText, { color: typeColor }]}>{activity.type}</Text>
+        </View>
       </Pressable>
 
       {activity.title ? <Text style={[styles.feedTitle, { color: colors.textPrimary }]}>{activity.title}</Text> : null}
 
-      <View style={[styles.statsRow, { borderColor: colors.border }]}>
+      <View style={[styles.statsRow, { backgroundColor: colors.surface }]}>
         <MiniStat label="Distância" value={`${formatKm(activity.distance_km)} km`} colors={colors} />
+        <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
         <MiniStat label="Tempo" value={formatClock(activity.duration_sec)} colors={colors} />
+        <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
         <MiniStat label="Ritmo" value={`${paceMinPerKm(activity.distance_km, activity.duration_sec)}/km`} colors={colors} />
       </View>
 
       <View style={styles.actionsRow}>
-        <Pressable onPress={onToggleLike} style={styles.likeRow}>
-          <Text style={{ fontSize: 16 }}>{activity.likedByMe ? '❤️' : '🤍'}</Text>
-          <Text style={[styles.likeCount, { color: activity.likedByMe ? colors.primary : colors.textMuted }]}>
-            {activity.likeCount > 0 ? activity.likeCount : 'Curtir'}
-          </Text>
-        </Pressable>
+        <LikeButton liked={activity.likedByMe} count={activity.likeCount} onPress={onToggleLike} />
 
-        <Pressable onPress={toggleComments} style={styles.likeRow}>
-          <Text style={{ fontSize: 16 }}>💬</Text>
-          <Text style={[styles.likeCount, { color: commentsOpen ? colors.primary : colors.textMuted }]}>
+        <Pressable onPress={toggleComments} style={styles.actionBtn} hitSlop={6}>
+          <Ionicons
+            name={commentsOpen ? 'chatbubble' : 'chatbubble-outline'}
+            size={19}
+            color={commentsOpen ? colors.primary : colors.textMuted}
+          />
+          <Text style={[styles.actionText, { color: commentsOpen ? colors.primary : colors.textMuted }]}>
             {commentCount > 0 ? commentCount : 'Comentar'}
           </Text>
         </Pressable>
       </View>
 
       {commentsOpen && (
-        <View style={[styles.commentsBox, { borderColor: colors.border }]}>
+        <FadeIn offset={6} duration={260} style={[styles.commentsBox, { borderColor: colors.border }]}>
           {commentsLoading && <ActivityIndicator color={colors.primary} style={{ marginVertical: 8 }} />}
 
           {!commentsLoading && commentsError && (
@@ -345,12 +394,13 @@ function FeedCard({
             ))}
 
           {replyTo && (
-            <View style={[styles.replyChip, { backgroundColor: colors.background, borderColor: colors.border }]}>
+            <View style={[styles.replyChip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Ionicons name="return-down-forward" size={14} color={colors.primary} />
               <Text style={[styles.replyChipText, { color: colors.textMuted }]} numberOfLines={1}>
-                Respondendo a {replyTo.authorName}
+                Respondendo a <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{replyTo.authorName}</Text>
               </Text>
-              <Pressable onPress={() => setReplyTo(null)} hitSlop={8}>
-                <Text style={[styles.replyChipClose, { color: colors.textMuted }]}>✕</Text>
+              <Pressable onPress={() => setReplyTo(null)} hitSlop={8} accessibilityLabel="Cancelar resposta">
+                <Ionicons name="close" size={16} color={colors.textMuted} />
               </Pressable>
             </View>
           )}
@@ -364,24 +414,50 @@ function FeedCard({
               multiline
               style={[
                 styles.commentInput,
-                { backgroundColor: colors.background, borderColor: colors.border, color: colors.textPrimary },
+                { backgroundColor: colors.surface, borderColor: colors.border, color: colors.textPrimary },
               ]}
             />
             <Pressable
               onPress={handleSend}
               disabled={posting || !commentText.trim()}
+              accessibilityLabel="Enviar comentário"
               style={[
                 styles.sendBtn,
                 { backgroundColor: colors.primary },
-                (posting || !commentText.trim()) && { opacity: 0.5 },
+                (posting || !commentText.trim()) && { opacity: 0.45 },
               ]}
             >
-              {posting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.sendBtnText}>➤</Text>}
+              {posting ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="send" size={16} color="#fff" />}
             </Pressable>
           </View>
-        </View>
+        </FadeIn>
       )}
     </Card>
+  );
+}
+
+/** Coração que dá um "pulo" ao curtir. */
+function LikeButton({ liked, count, onPress }: { liked: boolean; count: number; onPress: () => void }) {
+  const { colors } = useTheme();
+  const pop = useRef(new Animated.Value(1)).current;
+
+  const handlePress = () => {
+    tapLight();
+    if (!liked && !prefersReducedMotion()) {
+      pop.setValue(0.7);
+      Animated.spring(pop, { toValue: 1, useNativeDriver: true, speed: 14, bounciness: 18 }).start();
+    }
+    onPress();
+  };
+
+  const likeColor = colors.danger;
+  return (
+    <Pressable onPress={handlePress} style={styles.actionBtn} hitSlop={6} accessibilityLabel={liked ? 'Descurtir' : 'Curtir'}>
+      <Animated.View style={{ transform: [{ scale: pop }] }}>
+        <Ionicons name={liked ? 'heart' : 'heart-outline'} size={20} color={liked ? likeColor : colors.textMuted} />
+      </Animated.View>
+      <Text style={[styles.actionText, { color: liked ? likeColor : colors.textMuted }]}>{count > 0 ? count : 'Curtir'}</Text>
+    </Pressable>
   );
 }
 
@@ -407,7 +483,7 @@ function CommentRow({
         <Avatar name={comment.authorName} size={30} />
       </Pressable>
       <View style={{ flex: 1 }}>
-        <View style={[styles.commentBubble, { backgroundColor: colors.background }]}>
+        <View style={[styles.commentBubble, { backgroundColor: colors.surface }]}>
           <Text onPress={onOpenProfile} style={[styles.commentAuthor, { color: colors.textPrimary }]}>
             {comment.authorName}
           </Text>
@@ -435,58 +511,68 @@ function CommentRow({
 function MiniStat({ label, value, colors }: { label: string; value: string; colors: any }) {
   return (
     <View style={{ alignItems: 'center', flex: 1 }}>
-      <Text style={[styles.miniValue, { color: colors.textPrimary }]}>{value}</Text>
+      <Text style={[styles.miniValue, { color: colors.textPrimary }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+        {value}
+      </Text>
       <Text style={[styles.miniLabel, { color: colors.textMuted }]}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 20, paddingBottom: 40 },
-  header: { fontSize: 24, fontWeight: '900', marginBottom: 16 },
-  search: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 13, fontSize: 15, marginBottom: 16 },
-  sectionTitle: { fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
+  content: { padding: 20, paddingBottom: 130 },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1.5,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    marginBottom: 18,
+    minHeight: 50,
+  },
+  searchInput: { flex: 1, fontSize: 15, paddingVertical: 12 },
   empty: { fontSize: 13, fontWeight: '600', marginBottom: 10 },
-  personCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
+  personCard: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10, paddingVertical: 12 },
   personTap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   personName: { flex: 1, fontSize: 14.5, fontWeight: '700' },
   feedCard: { marginBottom: 14 },
-  feedTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10 },
-  feedChevron: { fontSize: 22, fontWeight: '700', marginTop: -2 },
+  feedTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
   feedAuthor: { fontSize: 14.5, fontWeight: '800' },
   feedMeta: { fontSize: 12, fontWeight: '600', marginTop: 2 },
-  feedTitle: { fontSize: 13.5, fontWeight: '600', marginBottom: 12 },
-  statsRow: { flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, paddingVertical: 12, marginBottom: 10 },
-  miniValue: { fontSize: 13.5, fontWeight: '800' },
-  miniLabel: { fontSize: 10.5, fontWeight: '600', marginTop: 3, textTransform: 'uppercase' },
-  likeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
-  likeCount: { fontSize: 12.5, fontWeight: '700' },
-  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 22 },
-  commentsBox: { borderTopWidth: 1, marginTop: 12, paddingTop: 12, gap: 10 },
+  typeChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 10 },
+  typeChipText: { fontSize: 11.5, fontWeight: '800' },
+  feedTitle: { fontSize: 14.5, fontWeight: '700', marginBottom: 12, lineHeight: 20 },
+  statsRow: { flexDirection: 'row', alignItems: 'center', borderRadius: 14, paddingVertical: 12, marginBottom: 12 },
+  statDivider: { width: 1, height: 26 },
+  miniValue: { fontSize: 15, fontWeight: '800', letterSpacing: -0.2 },
+  miniLabel: { fontSize: 10, fontWeight: '700', marginTop: 3, textTransform: 'uppercase', letterSpacing: 0.4 },
+  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 22, paddingHorizontal: 2 },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 2 },
+  actionText: { fontSize: 13, fontWeight: '700' },
+  commentsBox: { borderTopWidth: 1, marginTop: 14, paddingTop: 14, gap: 12 },
   replyChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 7,
   },
-  replyChipText: { fontSize: 11.5, fontWeight: '600', flex: 1 },
-  replyChipClose: { fontSize: 13, fontWeight: '800', paddingLeft: 10 },
+  replyChipText: { fontSize: 12, fontWeight: '600', flex: 1 },
   commentInputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
   commentInput: {
     flex: 1,
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 13.5,
     maxHeight: 90,
     textAlignVertical: 'top',
   },
-  sendBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  sendBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  sendBtn: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
   commentRow: { flexDirection: 'row', gap: 10 },
   commentRowReply: { marginLeft: 26 },
   commentBubble: { borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 },

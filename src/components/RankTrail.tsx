@@ -1,7 +1,10 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { levelInfo, nextRankStep, rankTrail, RankStep } from '../lib/rank';
+import { RankBadge } from './RankBadge';
+import { Text } from './Typography';
 
 interface Props {
   xp: number;
@@ -34,7 +37,13 @@ export function RankTrail({ xp, subjectName }: Props) {
         ))}
       </View>
 
-      <View style={[styles.caption, { borderColor: colors.border }]}>
+      <View style={[styles.caption, { backgroundColor: colors.surface }]}>
+        <Ionicons
+          name={next ? 'trending-up' : 'sparkles'}
+          size={16}
+          color={next ? next.color : colors.primary}
+          style={{ marginTop: 1 }}
+        />
         {next ? (
           <Text style={[styles.captionText, { color: colors.textMuted }]}>
             {subjectName ? `${subjectName} está` : 'Você está'} no{' '}
@@ -45,7 +54,7 @@ export function RankTrail({ xp, subjectName }: Props) {
           </Text>
         ) : (
           <Text style={[styles.captionText, { color: colors.textMuted }]}>
-            <Text style={{ color: colors.textPrimary, fontWeight: '800' }}>Patente máxima alcançada</Text> 🎉 — nível{' '}
+            <Text style={{ color: colors.textPrimary, fontWeight: '800' }}>Patente máxima alcançada</Text> — nível{' '}
             {level} e contando.
           </Text>
         )}
@@ -78,22 +87,8 @@ function StepColumn({
 
         {/* Anel externo: sempre presente pra não mudar a altura entre as
             colunas — só ganha cor na patente atual. */}
-        <View
-          style={[
-            styles.ring,
-            { borderColor: step.isCurrent ? step.color : 'transparent' },
-          ]}
-        >
-          <View
-            style={[
-              styles.badge,
-              step.achieved
-                ? { backgroundColor: step.color, borderColor: step.color }
-                : { backgroundColor: colors.background, borderColor: colors.border, borderStyle: 'dashed' },
-            ]}
-          >
-            <Text style={[styles.emblem, !step.achieved && styles.emblemLocked]}>{step.emblem}</Text>
-          </View>
+        <View style={[styles.ring, { borderColor: step.isCurrent ? step.color : 'transparent' }]}>
+          <RankBadge icon={step.emblem} color={step.color} size={38} locked={!step.achieved} />
         </View>
 
         <View style={[styles.line, { backgroundColor: lineColor(lineAfter) }]} />
@@ -112,15 +107,12 @@ function StepColumn({
 
       {/* Rótulo curto de propósito: a coluna tem ~60px num iPhone, e
           "conquistada" por extenso não cabe — encostava na coluna vizinha. */}
-      <Text
-        style={[
-          styles.meta,
-          { color: step.isCurrent ? step.color : colors.textMuted },
-        ]}
-        numberOfLines={1}
-      >
-        {step.isCurrent ? 'atual' : step.achieved ? `✓ nv ${step.min}` : `nv ${step.min}`}
-      </Text>
+      <View style={styles.metaRow}>
+        {step.achieved && !step.isCurrent ? <Ionicons name="checkmark" size={10} color={colors.textMuted} /> : null}
+        <Text style={[styles.meta, { color: step.isCurrent ? step.color : colors.textMuted }]} numberOfLines={1}>
+          {step.isCurrent ? 'atual' : `nv ${step.min}`}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -131,18 +123,9 @@ const styles = StyleSheet.create({
   badgeRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch' },
   line: { flex: 1, height: 3, borderRadius: 2 },
   ring: { padding: 3, borderRadius: 26, borderWidth: 2 },
-  badge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emblem: { fontSize: 18 },
-  emblemLocked: { opacity: 0.3 },
   name: { fontSize: 11, fontWeight: '800', marginTop: 8 },
-  meta: { fontSize: 9.5, fontWeight: '700', marginTop: 3, textTransform: 'uppercase' },
-  caption: { borderTopWidth: 1, marginTop: 16, paddingTop: 12 },
-  captionText: { fontSize: 12.5, fontWeight: '600', lineHeight: 18 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 3 },
+  meta: { fontSize: 9.5, fontWeight: '700', textTransform: 'uppercase' },
+  caption: { flexDirection: 'row', gap: 10, marginTop: 18, padding: 12, borderRadius: 12 },
+  captionText: { flex: 1, fontSize: 12.5, fontWeight: '600', lineHeight: 18 },
 });

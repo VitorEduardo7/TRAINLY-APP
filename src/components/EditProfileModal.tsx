@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { TrainlyInput } from './TrainlyInput';
 import { TrainlyButton } from './TrainlyButton';
+import { Text } from './Typography';
 import { Profile } from '../types/models';
 
 interface Props {
@@ -58,6 +59,7 @@ export function EditProfileModal({ visible, profile, onClose, onSave }: Props) {
         {/* paddingBottom soma o inset pra os botões não ficarem sob a barra de gestos. */}
         <View style={[styles.sheet, { backgroundColor: colors.card, paddingBottom: 22 + insets.bottom }]}>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <View style={[styles.handle, { backgroundColor: colors.border }]} />
             <Text style={[styles.title, { color: colors.textPrimary }]}>Editar Perfil</Text>
             <TrainlyInput label="Nome" value={name} onChangeText={setName} placeholder="Seu nome" />
             <TrainlyInput
@@ -97,7 +99,8 @@ export function EditProfileModal({ visible, profile, onClose, onSave }: Props) {
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 22, maxHeight: '88%' },
+  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 22, paddingTop: 12, maxHeight: '88%' },
+  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, marginBottom: 16 },
   title: { fontSize: 18, fontWeight: '800', marginBottom: 16 },
   actions: { flexDirection: 'row', gap: 12, marginTop: 8 },
 });

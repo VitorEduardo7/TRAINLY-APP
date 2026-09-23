@@ -1,7 +1,8 @@
 import React, { useLayoutEffect } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useUserProfile } from '../hooks/useUserProfile';
@@ -10,8 +11,14 @@ import { Avatar } from '../components/Avatar';
 import { RankWidget } from '../components/RankWidget';
 import { RankTrail } from '../components/RankTrail';
 import { TrainlyButton } from '../components/TrainlyButton';
+import { SectionTitle } from '../components/SectionTitle';
+import { StatTile } from '../components/StatTile';
+import { EmptyState } from '../components/EmptyState';
+import { FadeIn } from '../components/Motion';
+import { Text } from '../components/Typography';
 import { activityStats } from '../lib/stats';
 import { formatClock, formatKm } from '../lib/geo';
+import { levelInfo } from '../lib/rank';
 import { RootStackParamList } from '../navigation/types';
 
 type UserProfileRouteProp = RouteProp<RootStackParamList, 'UserProfile'>;
@@ -54,12 +61,12 @@ export function UserProfileScreen() {
     if (error) {
       return (
         <View style={[styles.center, { backgroundColor: colors.background }]}>
-          <Text style={[styles.errorText, { color: colors.textMuted }]}>
-            Não foi possível carregar esse perfil.
-          </Text>
-          <View style={{ marginTop: 16, alignSelf: 'stretch', paddingHorizontal: 40 }}>
-            <TrainlyButton title="Tentar de novo" variant="secondary" onPress={reload} />
-          </View>
+          <EmptyState
+            icon="cloud-offline-outline"
+            title="Não foi possível carregar"
+            message="Esse perfil pode ter sido removido, ou sua internet caiu no meio do caminho."
+            action={<TrainlyButton title="Tentar de novo" variant="secondary" onPress={reload} />}
+          />
         </View>
       );
     }
@@ -71,6 +78,7 @@ export function UserProfileScreen() {
   }
 
   const stats = activityStats(activities);
+  const rankInfo = levelInfo(profile.xp ?? 0);
   const firstName = profile.name?.split(' ')[0] ?? 'Ele';
   const isMe = me?.id === profile.id;
 
@@ -83,8 +91,8 @@ export function UserProfileScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.primary} />}
     >
-      <View style={styles.header}>
-        <Avatar name={profile.name} size={88} />
+      <FadeIn style={styles.header}>
+        <Avatar name={profile.name} size={88} ringColor={rankInfo.rank.color} />
         <Text style={[styles.name, { color: colors.textPrimary }]}>{profile.name}</Text>
 
         {followsMe && !isMe ? (
@@ -94,65 +102,78 @@ export function UserProfileScreen() {
         ) : null}
 
         {profile.location ? (
-          <Text style={[styles.location, { color: colors.textMuted }]}>📍 {profile.location}</Text>
+          <View style={styles.locationRow}>
+            <Ionicons name="location-outline" size={13} color={colors.textMuted} />
+            <Text style={[styles.location, { color: colors.textMuted }]}>{profile.location}</Text>
+          </View>
         ) : null}
         {profile.bio ? <Text style={[styles.bio, { color: colors.textMuted }]}>{profile.bio}</Text> : null}
-      </View>
+      </FadeIn>
 
-      <Card style={styles.countsCard}>
-        <Count label="Seguidores" value={followerCount} colors={colors} />
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-        <Count label="Seguindo" value={followingCount} colors={colors} />
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-        <Count label="Atividades" value={stats.count} colors={colors} />
-      </Card>
+      <FadeIn delay={60}>
+        <Card style={styles.countsCard}>
+          <Count label="Seguidores" value={followerCount} colors={colors} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <Count label="Seguindo" value={followingCount} colors={colors} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <Count label="Atividades" value={stats.count} colors={colors} />
+        </Card>
+      </FadeIn>
 
       {!isMe && (
-        <View style={{ marginTop: 16 }}>
+        <FadeIn delay={100} style={{ marginTop: 16 }}>
           <TrainlyButton
             title={followLabel}
             variant={isFollowing ? 'secondary' : 'primary'}
             onPress={toggleFollow}
             loading={busy}
           />
-        </View>
+        </FadeIn>
       )}
 
-      <Card style={{ marginTop: 16 }}>
-        <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Patente Atual</Text>
-        <RankWidget xp={profile.xp ?? 0} />
-      </Card>
+      <FadeIn delay={150}>
+        <Card style={{ marginTop: 16 }}>
+          <SectionTitle title="Patente Atual" />
+          <RankWidget xp={profile.xp ?? 0} />
+        </Card>
+      </FadeIn>
 
-      <Card style={{ marginTop: 16 }}>
-        <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Patentes</Text>
-        <RankTrail xp={profile.xp ?? 0} subjectName={isMe ? undefined : firstName} />
-      </Card>
+      <FadeIn delay={200}>
+        <Card style={{ marginTop: 16 }}>
+          <SectionTitle title="Patentes" />
+          <RankTrail xp={profile.xp ?? 0} subjectName={isMe ? undefined : firstName} />
+        </Card>
+      </FadeIn>
 
-      <Card style={{ marginTop: 16 }}>
-        <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Resumo</Text>
-        <View style={styles.grid}>
-          <Metric label="Distância Total" value={`${formatKm(stats.totalKm)} km`} colors={colors} />
-          <Metric label="Tempo Ativo" value={formatClock(stats.totalSec)} colors={colors} />
-          <Metric label="Elevação Acum." value={`${stats.totalElev} m`} colors={colors} />
-          <Metric label="Atividades" value={String(stats.count)} colors={colors} />
-          <Metric label="Dias Ativos" value={`${stats.activeDays} dias`} colors={colors} />
-          <Metric label="XP Total" value={(profile.xp ?? 0).toLocaleString('pt-BR')} colors={colors} />
-        </View>
-      </Card>
-
-      <Card style={{ marginTop: 16, marginBottom: 8 }}>
-        <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Recordes Pessoais</Text>
-        {stats.count === 0 ? (
-          <Text style={[styles.empty, { color: colors.textMuted }]}>
-            {firstName} ainda não registrou nenhuma atividade.
-          </Text>
-        ) : (
+      <FadeIn delay={250}>
+        <Card style={{ marginTop: 16 }}>
+          <SectionTitle title="Resumo" />
           <View style={styles.grid}>
-            <Metric label="Maior Distância" value={`${formatKm(stats.bestDistanceKm)} km`} colors={colors} />
-            <Metric label="Maior Duração" value={formatClock(stats.longestDurationSec)} colors={colors} />
+            <StatTile icon="navigate" label="Distância Total" value={`${formatKm(stats.totalKm)} km`} />
+            <StatTile icon="time" label="Tempo Ativo" value={formatClock(stats.totalSec)} />
+            <StatTile icon="trending-up" label="Elevação Acum." value={`${stats.totalElev} m`} />
+            <StatTile icon="flash" label="Atividades" value={String(stats.count)} />
+            <StatTile icon="calendar-outline" label="Dias Ativos" value={`${stats.activeDays} dias`} />
+            <StatTile icon="star" label="XP Total" value={(profile.xp ?? 0).toLocaleString('pt-BR')} />
           </View>
-        )}
-      </Card>
+        </Card>
+      </FadeIn>
+
+      <FadeIn delay={300}>
+        <Card style={{ marginTop: 16, marginBottom: 8 }}>
+          <SectionTitle title="Recordes Pessoais" />
+          {stats.count === 0 ? (
+            <Text style={[styles.empty, { color: colors.textMuted }]}>
+              {firstName} ainda não registrou nenhuma atividade.
+            </Text>
+          ) : (
+            <View style={styles.grid}>
+              <StatTile icon="navigate" label="Maior Distância" value={`${formatKm(stats.bestDistanceKm)} km`} />
+              <StatTile icon="time" label="Maior Duração" value={formatClock(stats.longestDurationSec)} />
+            </View>
+          )}
+        </Card>
+      </FadeIn>
     </ScrollView>
   );
 }
@@ -166,34 +187,21 @@ function Count({ label, value, colors }: { label: string; value: number; colors:
   );
 }
 
-function Metric({ label, value, colors }: { label: string; value: string; colors: any }) {
-  return (
-    <View style={styles.metric}>
-      <Text style={[styles.metricLabel, { color: colors.textMuted }]}>{label}</Text>
-      <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{value}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  errorText: { fontSize: 14, fontWeight: '600', textAlign: 'center' },
   content: { padding: 20, paddingBottom: 40 },
   header: { alignItems: 'center', marginBottom: 20 },
   name: { fontSize: 20, fontWeight: '900', marginTop: 12 },
   followsYouChip: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 3, marginTop: 8 },
   followsYouText: { fontSize: 10.5, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
-  location: { fontSize: 13, marginTop: 8, fontWeight: '600' },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
+  location: { fontSize: 13, fontWeight: '600' },
   bio: { fontSize: 13, marginTop: 8, textAlign: 'center', paddingHorizontal: 20, lineHeight: 18 },
   countsCard: { flexDirection: 'row', alignItems: 'center' },
   count: { flex: 1, alignItems: 'center' },
   countValue: { fontSize: 19, fontWeight: '900' },
   countLabel: { fontSize: 10.5, fontWeight: '700', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.3 },
   divider: { width: 1, alignSelf: 'stretch', marginVertical: 2 },
-  cardTitle: { fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 20 },
-  metric: { width: '40%' },
-  metricLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', marginBottom: 6 },
-  metricValue: { fontSize: 18, fontWeight: '800' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   empty: { fontSize: 13, fontWeight: '600' },
 });

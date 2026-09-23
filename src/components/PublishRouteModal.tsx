@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { TrainlyInput } from './TrainlyInput';
 import { TrainlyButton } from './TrainlyButton';
+import { ChipSelector } from './ChipSelector';
+import { Text } from './Typography';
 import { RouteDifficulty } from '../types/models';
 
 const DIFFICULTIES: RouteDifficulty[] = ['Fácil', 'Moderada', 'Difícil'];
@@ -23,6 +25,9 @@ export function PublishRouteModal({ visible, onClose, activityTitle, onSave }: P
   const [terrain, setTerrain] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Sem haptic de sucesso aqui de propósito: quem chama esse modal (a tela de
+  // Histórico) já dispara `success()` ao publicar de verdade — duplicar aqui
+  // faria vibrar duas vezes pra uma única ação.
   const handleSave = async () => {
     if (!name.trim()) {
       Alert.alert('Trainly', 'Dê um nome à rota.');
@@ -45,6 +50,7 @@ export function PublishRouteModal({ visible, onClose, activityTitle, onSave }: P
         {/* paddingBottom soma o inset pra os botões não ficarem sob a barra de gestos. */}
         <View style={[styles.sheet, { backgroundColor: colors.card, paddingBottom: 22 + insets.bottom }]}>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <View style={[styles.handle, { backgroundColor: colors.border }]} />
             <Text style={[styles.title, { color: colors.textPrimary }]}>Publicar como Rota</Text>
             <Text style={[styles.subtitle, { color: colors.textMuted }]}>
               O trajeto dessa atividade fica visível pra qualquer pessoa em Explorar Rotas.
@@ -53,24 +59,7 @@ export function PublishRouteModal({ visible, onClose, activityTitle, onSave }: P
             <TrainlyInput label="Nome da rota" placeholder="Ex: Volta do parque" value={name} onChangeText={setName} />
 
             <Text style={[styles.label, { color: colors.textMuted }]}>Dificuldade</Text>
-            <View style={styles.chipRow}>
-              {DIFFICULTIES.map((d) => (
-                <Text
-                  key={d}
-                  onPress={() => setDifficulty(d)}
-                  style={[
-                    styles.chip,
-                    {
-                      borderColor: d === difficulty ? colors.primary : colors.border,
-                      color: d === difficulty ? colors.primary : colors.textMuted,
-                      backgroundColor: d === difficulty ? `${colors.primary}22` : 'transparent',
-                    },
-                  ]}
-                >
-                  {d}
-                </Text>
-              ))}
-            </View>
+            <ChipSelector options={DIFFICULTIES} value={difficulty} onChange={setDifficulty} style={styles.chipRow} />
 
             <TrainlyInput
               label="Terreno (opcional)"
@@ -96,19 +85,11 @@ export function PublishRouteModal({ visible, onClose, activityTitle, onSave }: P
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 22, maxHeight: '88%' },
+  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 22, paddingTop: 12, maxHeight: '88%' },
+  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, marginBottom: 16 },
   title: { fontSize: 18, fontWeight: '800', marginBottom: 6 },
   subtitle: { fontSize: 12.5, fontWeight: '600', marginBottom: 16, lineHeight: 17 },
   label: { fontSize: 12.5, fontWeight: '600', marginBottom: 8 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  chip: {
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    fontSize: 13,
-    fontWeight: '700',
-    overflow: 'hidden',
-  },
+  chipRow: { marginBottom: 16 },
   actions: { flexDirection: 'row', gap: 12, marginTop: 8 },
 });

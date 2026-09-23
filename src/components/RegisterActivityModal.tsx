@@ -6,13 +6,15 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { TrainlyInput } from './TrainlyInput';
 import { TrainlyButton } from './TrainlyButton';
+import { ChipSelector } from './ChipSelector';
+import { Text } from './Typography';
+import { success } from '../lib/haptics';
 import { maskDateInput } from '../lib/textMask';
 import { ActivityType } from '../types/models';
 
@@ -97,6 +99,7 @@ export function RegisterActivityModal({ visible, onClose, onSave }: Props) {
         // e uma corrida rastreada na hora ao ordenar o feed por data.
         date: trimmedDate === todayLocalISO() ? undefined : trimmedDate,
       });
+      success();
       Alert.alert('Trainly', `Atividade salva! Você ganhou ${xp} XP.`);
       reset();
       onClose();
@@ -113,27 +116,11 @@ export function RegisterActivityModal({ visible, onClose, onSave }: Props) {
         {/* paddingBottom soma o inset pra os botões não ficarem sob a barra de gestos. */}
         <View style={[styles.sheet, { backgroundColor: colors.card, paddingBottom: 22 + insets.bottom }]}>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <View style={[styles.handle, { backgroundColor: colors.border }]} />
             <Text style={[styles.title, { color: colors.textPrimary }]}>Registrar Atividade</Text>
 
             <Text style={[styles.label, { color: colors.textMuted }]}>Tipo</Text>
-            <View style={styles.typeRow}>
-              {TYPES.map((t) => (
-                <Text
-                  key={t}
-                  onPress={() => setType(t)}
-                  style={[
-                    styles.typeChip,
-                    {
-                      borderColor: t === type ? colors.primary : colors.border,
-                      color: t === type ? colors.primary : colors.textMuted,
-                      backgroundColor: t === type ? `${colors.primary}22` : 'transparent',
-                    },
-                  ]}
-                >
-                  {t}
-                </Text>
-              ))}
-            </View>
+            <ChipSelector options={TYPES} value={type} onChange={setType} style={styles.typeRow} />
 
             <TrainlyInput
               label="Título / legenda (opcional)"
@@ -217,19 +204,11 @@ export function RegisterActivityModal({ visible, onClose, onSave }: Props) {
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 22, maxHeight: '88%' },
+  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 22, paddingTop: 12, maxHeight: '88%' },
+  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, marginBottom: 16 },
   title: { fontSize: 18, fontWeight: '800', marginBottom: 16 },
   label: { fontSize: 12.5, fontWeight: '600', marginBottom: 8 },
-  typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  typeChip: {
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    fontSize: 13,
-    fontWeight: '700',
-    overflow: 'hidden',
-  },
+  typeRow: { marginBottom: 16 },
   row: { flexDirection: 'row', gap: 12 },
   todayLink: { fontSize: 12, fontWeight: '700' },
   actions: { flexDirection: 'row', gap: 12, marginTop: 8 },

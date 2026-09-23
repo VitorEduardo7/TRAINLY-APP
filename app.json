@@ -39,6 +39,20 @@
         {
           "locationWhenInUsePermission": "O Trainly usa sua localização para registrar a rota e a distância das suas corridas."
         }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0a0b0f",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "android": {
+            "backgroundColor": "#0a0b0f",
+            "image": "./assets/splash-icon-android.png",
+            "imageWidth": 240
+          }
+        }
       ]
     ],
     "extra": {
