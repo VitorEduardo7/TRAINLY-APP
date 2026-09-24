@@ -12,6 +12,7 @@ import { ClubDetailScreen } from '../screens/ClubDetailScreen';
 import { RouteDetailScreen } from '../screens/RouteDetailScreen';
 import { UserProfileScreen } from '../screens/UserProfileScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
+import { AchievementsScreen } from '../screens/AchievementsScreen';
 import { MainTabs } from './MainTabs';
 import { RootStackParamList } from './types';
 
@@ -79,6 +80,11 @@ export function RootNavigator() {
                 name="Notifications"
                 component={NotificationsScreen}
                 options={{ ...detailHeader, title: 'Notificações' }}
+              />
+              <Stack.Screen
+                name="Achievements"
+                component={AchievementsScreen}
+                options={{ ...detailHeader, title: 'Conquistas' }}
               />
             </>
           ) : (

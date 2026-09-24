@@ -1,7 +1,8 @@
 import React, { useCallback, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
@@ -16,8 +17,10 @@ import { EditProfileModal } from '../components/EditProfileModal';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SectionTitle } from '../components/SectionTitle';
 import { StatTile } from '../components/StatTile';
+import { AchievementsPreviewCard } from '../components/AchievementsPreviewCard';
 import { FadeIn } from '../components/Motion';
 import { Text } from '../components/Typography';
+import { RootStackParamList } from '../navigation/types';
 import { warning } from '../lib/haptics';
 import { activityStats } from '../lib/stats';
 import { formatClock, formatKm } from '../lib/geo';
@@ -27,6 +30,7 @@ export function ProfileScreen() {
   const { colors, mode, toggle } = useTheme();
   const { profile, refreshProfile, signOut } = useAuth();
   const { activities, loading, reload } = useActivities(profile?.id);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [editVisible, setEditVisible] = useState(false);
 
   // Sem isso, o Resumo/Recordes ficava com números velhos depois de registrar
@@ -103,6 +107,16 @@ export function ProfileScreen() {
               onPress={toggle}
             />
           </View>
+        </FadeIn>
+
+        <FadeIn delay={90} style={{ marginTop: 16 }}>
+          <AchievementsPreviewCard
+            userId={profile?.id}
+            onPress={() => {
+              if (!profile) return;
+              navigation.navigate('Achievements', { userId: profile.id, name: profile.name });
+            }}
+          />
         </FadeIn>
 
         <FadeIn delay={120}>

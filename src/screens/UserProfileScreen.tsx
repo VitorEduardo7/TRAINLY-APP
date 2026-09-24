@@ -13,6 +13,7 @@ import { RankTrail } from '../components/RankTrail';
 import { TrainlyButton } from '../components/TrainlyButton';
 import { SectionTitle } from '../components/SectionTitle';
 import { StatTile } from '../components/StatTile';
+import { AchievementsPreviewCard } from '../components/AchievementsPreviewCard';
 import { EmptyState } from '../components/EmptyState';
 import { FadeIn } from '../components/Motion';
 import { Text } from '../components/Typography';
@@ -130,6 +131,13 @@ export function UserProfileScreen() {
           />
         </FadeIn>
       )}
+
+      <FadeIn delay={130} style={{ marginTop: 16 }}>
+        <AchievementsPreviewCard
+          userId={profile.id}
+          onPress={() => navigation.navigate('Achievements', { userId: profile.id, name: profile.name })}
+        />
+      </FadeIn>
 
       <FadeIn delay={150}>
         <Card style={{ marginTop: 16 }}>

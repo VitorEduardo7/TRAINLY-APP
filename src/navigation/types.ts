@@ -8,6 +8,8 @@ export type RootStackParamList = {
    *  antes do perfil terminar de carregar. */
   UserProfile: { userId: string; name?: string };
   Notifications: undefined;
+  /** Grade de conquistas — da própria pessoa ou de outra (`name` só ajusta o título). */
+  Achievements: { userId: string; name?: string };
 };
 
 export type MainTabParamList = {

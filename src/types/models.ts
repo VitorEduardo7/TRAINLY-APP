@@ -130,3 +130,18 @@ export interface ActivityComment {
   authorName: string;
   authorAvatarUrl: string | null;
 }
+
+// --- Conquistas -------------------------------------------------------
+
+export type AchievementCategory = 'milestone' | 'time_of_day' | 'social';
+
+export interface AchievementDefinition {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  category: AchievementCategory;
+  xp_reward: number;
+  params: Record<string, number>;
+  sort_order: number;
+}
