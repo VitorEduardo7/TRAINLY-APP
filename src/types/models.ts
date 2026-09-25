@@ -9,6 +9,10 @@ export interface Profile {
   xp: number;
   monthly_goal_km: number;
   created_at: string;
+  /** Moldura de avatar preferida (Bronze..Diamante) — `null` = automático (usa a patente atual). */
+  equipped_frame_tier: string | null;
+  /** Cor do mapa preferida na sua própria corrida — `null` = automático (usa a patente atual). */
+  equipped_map_tier: string | null;
 }
 
 export interface Activity {
@@ -92,6 +96,9 @@ export interface TrainlyRoute {
   path: [number, number][];
   created_at: string;
   creator_name?: string;
+  /** XP de quem publicou — junto com `creator_map_tier`, decide a cor do traçado (ver `effectiveTier`). */
+  creator_xp?: number;
+  creator_map_tier?: string | null;
 }
 
 // --- Amigos (seguir + feed + curtidas) -------------------------------------

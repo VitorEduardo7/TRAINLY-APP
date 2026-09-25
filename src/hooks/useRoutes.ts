@@ -12,13 +12,15 @@ export function useRoutes() {
     setLoading(true);
     const { data, error: err } = await supabase
       .from('routes')
-      .select('*, creator:profiles(name)')
+      .select('*, creator:profiles(name, xp, equipped_map_tier)')
       .order('created_at', { ascending: false });
     if (!err && data) {
       setRoutes(
         (data as any[]).map((r) => ({
           ...r,
           creator_name: r.creator?.name ?? 'Atleta',
+          creator_xp: r.creator?.xp ?? 0,
+          creator_map_tier: r.creator?.equipped_map_tier ?? null,
         })) as TrainlyRoute[],
       );
       setError(false);
@@ -83,12 +85,17 @@ export function useRouteDetail(routeId: string | undefined) {
     setLoading(true);
     const { data } = await supabase
       .from('routes')
-      .select('*, creator:profiles(name)')
+      .select('*, creator:profiles(name, xp, equipped_map_tier)')
       .eq('id', routeId)
       .single();
     if (data) {
       const r = data as any;
-      setRoute({ ...r, creator_name: r.creator?.name ?? 'Atleta' } as TrainlyRoute);
+      setRoute({
+        ...r,
+        creator_name: r.creator?.name ?? 'Atleta',
+        creator_xp: r.creator?.xp ?? 0,
+        creator_map_tier: r.creator?.equipped_map_tier ?? null,
+      } as TrainlyRoute);
     }
     setLoading(false);
   }, [routeId]);

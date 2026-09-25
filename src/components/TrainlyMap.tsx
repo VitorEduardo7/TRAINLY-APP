@@ -58,6 +58,19 @@ export interface TrainlyBounds {
 
 export type PinVariant = 'start' | 'finish' | 'current';
 
+/**
+ * Um traçado extra, colorido por conta própria — usado só na visão geral do
+ * Explorar Rotas, pra desenhar VÁRIAS rotas de uma vez, cada uma na cor da
+ * patente de quem a criou (ver `paths` em `TrainlyMapProps`). Diferente do
+ * `path`/`pathColor` de cima, que é o traçado ÚNICO da corrida atual ou da
+ * rota aberta.
+ */
+export interface TrainlyPathOverlay {
+  id: string;
+  coords: LatLon[];
+  color: string;
+}
+
 export interface TrainlyMarker {
   id: string;
   coord: LatLon;
@@ -120,6 +133,8 @@ export interface TrainlyMapProps {
   /** Trajeto a desenhar no mapa, já na ordem em que foi percorrido. */
   path?: LatLon[];
   pathColor?: string;
+  /** Vários traçados de uma vez, cada um com sua própria cor (ver `TrainlyPathOverlay`) — usado no mapa geral do Explorar Rotas em vez de `path`/`pathColor`. */
+  paths?: TrainlyPathOverlay[];
   /** Marcadores (início, fim, posição atual). */
   markers?: TrainlyMarker[];
   /**
@@ -148,7 +163,7 @@ function deltaForZoom(zoom: number): number {
   return 360 / Math.pow(2, zoom);
 }
 
-function NativeTrainlyMap({ style, center, bounds, zoom = RUN_ZOOM, path, pathColor, markers }: TrainlyMapProps) {
+function NativeTrainlyMap({ style, center, bounds, zoom = RUN_ZOOM, path, pathColor, paths, markers }: TrainlyMapProps) {
   const { colors } = useTheme();
   const mapRef = useRef<NativeMapView>(null);
   const didInitialMove = useRef(false);
@@ -209,6 +224,18 @@ function NativeTrainlyMap({ style, center, bounds, zoom = RUN_ZOOM, path, pathCo
           <NativePolyline coordinates={path} strokeColor={colors.background} strokeWidth={9} lineCap="round" lineJoin="round" />
           <NativePolyline coordinates={path} strokeColor={pathColor ?? colors.primary} strokeWidth={5} lineCap="round" lineJoin="round" />
         </>
+      )}
+      {(paths ?? []).map((p) =>
+        p.coords.length > 1 ? (
+          <NativePolyline
+            key={p.id}
+            coordinates={p.coords}
+            strokeColor={p.color}
+            strokeWidth={3}
+            lineCap="round"
+            lineJoin="round"
+          />
+        ) : null,
       )}
       {(markers ?? []).map((m) => (
         <NativeMarker key={m.id} coordinate={m.coord} tracksViewChanges={false}>
@@ -286,6 +313,7 @@ function WebTrainlyMap({
   zoom = RUN_ZOOM,
   path,
   pathColor,
+  paths,
   markers,
   followSmoothly = false,
   offlineHint,
@@ -349,6 +377,16 @@ function WebTrainlyMap({
     if (!ready || !bounds) return;
     postToMap(webviewRef, { type: 'bounds', ...bounds });
   }, [ready, bounds]);
+
+  useEffect(() => {
+    if (!ready) return;
+    postToMap(webviewRef, {
+      type: 'paths',
+      paths: (paths ?? []).map((p) => ({ id: p.id, coords: p.coords.map((c) => [c.longitude, c.latitude]), color: p.color })),
+      casing: colors.background,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, paths, colors.background]);
 
   const handleMessage = (event: TrainlyWebViewMessageEvent) => {
     let msg: { type?: string } = {};
@@ -503,6 +541,7 @@ function buildMapHtml(mode: 'dark' | 'light'): string {
       var loaded = false;
       var routeSourceId = 'trainly-route';
       var markerLayers = {};
+      var pathOverlays = {};
 
       function emptyLineString() {
         return { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } };
@@ -568,6 +607,44 @@ function buildMapHtml(mode: 'dark' | 'light'): string {
           });
         } else if (msg.type === 'bounds') {
           map.fitBounds([msg.west, msg.south, msg.east, msg.north], { padding: 50, duration: 900 });
+        } else if (msg.type === 'paths') {
+          var seenPaths = {};
+          (msg.paths || []).forEach(function (p) {
+            seenPaths[p.id] = true;
+            var srcId = 'trainly-ov-' + p.id;
+            var feature = { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: p.coords } };
+            var source = map.getSource(srcId);
+            if (source) {
+              source.setData(feature);
+            } else {
+              map.addSource(srcId, { type: 'geojson', data: feature });
+              // Contorno leve por baixo, igual ao traçado único — só que mais
+              // fino, porque aqui tem várias rotas ao mesmo tempo na mesma tela.
+              map.addLayer({
+                id: srcId + '-casing', type: 'line', source: srcId,
+                layout: { 'line-cap': 'round', 'line-join': 'round' },
+                paint: { 'line-color': msg.casing, 'line-width': 5, 'line-opacity': 0.35 },
+              });
+              map.addLayer({
+                id: srcId + '-line', type: 'line', source: srcId,
+                layout: { 'line-cap': 'round', 'line-join': 'round' },
+                paint: { 'line-color': p.color, 'line-width': 3, 'line-opacity': 0.85 },
+              });
+            }
+            if (map.getLayer(srcId + '-line')) {
+              map.setPaintProperty(srcId + '-line', 'line-color', p.color);
+              map.setPaintProperty(srcId + '-casing', 'line-color', msg.casing);
+            }
+          });
+          Object.keys(pathOverlays).forEach(function (id) {
+            if (!seenPaths[id]) {
+              var oldSrcId = 'trainly-ov-' + id;
+              if (map.getLayer(oldSrcId + '-line')) map.removeLayer(oldSrcId + '-line');
+              if (map.getLayer(oldSrcId + '-casing')) map.removeLayer(oldSrcId + '-casing');
+              if (map.getSource(oldSrcId)) map.removeSource(oldSrcId);
+            }
+          });
+          pathOverlays = seenPaths;
         }
       }
 

@@ -8,11 +8,13 @@ import { useAuth } from '../hooks/useAuth';
 import { useRouteDetail, useRoutes } from '../hooks/useRoutes';
 import { TrainlyButton } from '../components/TrainlyButton';
 import { StatTile } from '../components/StatTile';
+import { MapTierBadge } from '../components/MapTierBadge';
 import { FadeIn } from '../components/Motion';
 import { Text } from '../components/Typography';
 import { formatKm } from '../lib/geo';
 import { difficultyColor } from '../theme/colors';
 import { warning } from '../lib/haptics';
+import { effectiveTier } from '../lib/rank';
 import { RootStackParamList } from '../navigation/types';
 import type { TrainlyRoute } from '../types/models';
 
@@ -60,6 +62,10 @@ function RouteDetail({ route }: { route: TrainlyRoute }) {
   }, [coords]);
 
   const isOwner = profile?.id === route.created_by;
+  // A cor do traçado é a personalização de quem CRIOU a rota, não de quem
+  // está vendo — assim a rota fica com a mesma "cara" em qualquer tela (aqui
+  // e na prévia do Explorar Rotas).
+  const mapTier = effectiveTier(route.creator_xp ?? 0, route.creator_map_tier);
 
   const handleDelete = () => {
     warning();
@@ -91,9 +97,11 @@ function RouteDetail({ route }: { route: TrainlyRoute }) {
         bounds={bounds}
         center={coords[0] ?? { latitude: -23.55, longitude: -46.63 }}
         path={coords}
+        pathColor={mapTier.color}
         markers={markers}
         offlineHint="O trajeto desta rota está salvo — os dados abaixo são dela. Só o desenho do mapa precisa de internet."
       />
+      <MapTierBadge tierName={mapTier.name} color={mapTier.color} style={styles.tierBadge} />
 
       <FadeIn style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.name, { color: colors.textPrimary }]}>{route.name}</Text>
@@ -139,6 +147,7 @@ function RouteDetail({ route }: { route: TrainlyRoute }) {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   map: { flex: 1 },
+  tierBadge: { position: 'absolute', top: 14, left: 14 },
   panel: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: 20 },
   name: { fontSize: 19, fontWeight: '900' },
   creator: { fontSize: 12.5, fontWeight: '600', marginTop: 4, marginBottom: 16 },

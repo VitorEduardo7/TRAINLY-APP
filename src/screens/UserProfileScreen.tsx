@@ -19,7 +19,7 @@ import { FadeIn } from '../components/Motion';
 import { Text } from '../components/Typography';
 import { activityStats } from '../lib/stats';
 import { formatClock, formatKm } from '../lib/geo';
-import { levelInfo } from '../lib/rank';
+import { effectiveTier } from '../lib/rank';
 import { RootStackParamList } from '../navigation/types';
 
 type UserProfileRouteProp = RouteProp<RootStackParamList, 'UserProfile'>;
@@ -79,7 +79,8 @@ export function UserProfileScreen() {
   }
 
   const stats = activityStats(activities);
-  const rankInfo = levelInfo(profile.xp ?? 0);
+  // A moldura mostrada é a que ESSA pessoa escolheu usar — não a nossa.
+  const frameTier = effectiveTier(profile.xp ?? 0, profile.equipped_frame_tier);
   const firstName = profile.name?.split(' ')[0] ?? 'Ele';
   const isMe = me?.id === profile.id;
 
@@ -93,7 +94,7 @@ export function UserProfileScreen() {
       refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.primary} />}
     >
       <FadeIn style={styles.header}>
-        <Avatar name={profile.name} size={88} uri={profile.avatar_url} ringColor={rankInfo.rank.color} zoomable />
+        <Avatar name={profile.name} size={88} uri={profile.avatar_url} frameTier={frameTier.name} zoomable />
         <Text style={[styles.name, { color: colors.textPrimary }]}>{profile.name}</Text>
 
         {followsMe && !isMe ? (

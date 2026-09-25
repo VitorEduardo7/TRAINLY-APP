@@ -18,8 +18,10 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { SectionTitle } from '../components/SectionTitle';
 import { StatTile } from '../components/StatTile';
 import { AchievementsPreviewCard } from '../components/AchievementsPreviewCard';
+import { CustomizationPreviewCard } from '../components/CustomizationPreviewCard';
 import { FadeIn } from '../components/Motion';
 import { Text } from '../components/Typography';
+import { effectiveTier } from '../lib/rank';
 import { RootStackParamList } from '../navigation/types';
 import { warning } from '../lib/haptics';
 import { activityStats } from '../lib/stats';
@@ -43,6 +45,7 @@ export function ProfileScreen() {
 
   const stats = activityStats(activities);
   const rankInfo = levelInfo(profile?.xp ?? 0);
+  const frameTier = effectiveTier(profile?.xp ?? 0, profile?.equipped_frame_tier);
 
   const handleSaveProfile = async (fields: {
     name: string;
@@ -85,7 +88,7 @@ export function ProfileScreen() {
         <ScreenHeader wash="profile" title="Perfil" />
 
         <FadeIn style={styles.header}>
-          <Avatar name={profile?.name ?? '?'} size={88} uri={profile?.avatar_url} ringColor={rankInfo.rank.color} zoomable />
+          <Avatar name={profile?.name ?? '?'} size={88} uri={profile?.avatar_url} frameTier={frameTier.name} zoomable />
           <Text style={[styles.name, { color: colors.textPrimary }]}>{profile?.name}</Text>
           {profile?.location ? (
             <View style={styles.locationRow}>
@@ -117,6 +120,10 @@ export function ProfileScreen() {
               navigation.navigate('Achievements', { userId: profile.id, name: profile.name });
             }}
           />
+        </FadeIn>
+
+        <FadeIn delay={105} style={{ marginTop: 16 }}>
+          <CustomizationPreviewCard profile={profile} onPress={() => navigation.navigate('Customization')} />
         </FadeIn>
 
         <FadeIn delay={120}>

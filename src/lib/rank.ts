@@ -112,3 +112,27 @@ export function rankTrail(totalXp: number): RankStep[] {
 export function nextRankStep(totalXp: number): RankStep | null {
   return rankTrail(totalXp).find((r) => !r.achieved) ?? null;
 }
+
+// --- Personalização (moldura do avatar e cor do mapa) -----------------------
+
+/** Nomes das patentes que a pessoa já desbloqueou (pelo nível), na ordem da trilha. */
+export function unlockedTierNames(totalXp: number): string[] {
+  const { level } = levelInfo(totalXp);
+  return RANKS.filter((r) => level >= r.min).map((r) => r.name);
+}
+
+/**
+ * Patente "efetiva" pra exibir numa moldura ou no mapa: a que a pessoa
+ * escolheu usar (`equippedTierName`), se ela já tiver desbloqueado essa
+ * patente — senão cai pra patente atual. Também protege contra um valor
+ * inválido ou ainda-não-desbloqueado que por algum motivo tenha ficado salvo
+ * no perfil (ex: nível "voltou" nunca acontece hoje, mas o código não confia
+ * cegamente no que está no banco).
+ */
+export function effectiveTier(totalXp: number, equippedTierName: string | null | undefined) {
+  const { level } = levelInfo(totalXp);
+  const current = getRankForLevel(level);
+  if (!equippedTierName) return current;
+  const chosen = RANKS.find((r) => r.name === equippedTierName);
+  return chosen && level >= chosen.min ? chosen : current;
+}

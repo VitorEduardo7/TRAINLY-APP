@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from './Typography';
 import { AvatarZoomModal } from './AvatarZoomModal';
 import { tapLight } from '../lib/haptics';
+import { lighten, tierColor, withAlpha } from '../theme/colors';
 
 function getInitials(name: string): string {
   return (name || '?')
@@ -36,18 +37,64 @@ function paletteFor(name: string): readonly [string, string] {
 interface Props {
   name: string;
   size?: number;
-  /** Anel colorido em volta (ex: cor da patente no perfil). */
+  /** Anel colorido simples em volta (ex: cor da patente numa listinha). Ignorado quando `frameTier` está presente. */
   ringColor?: string;
+  /**
+   * Moldura desbloqueável por patente (Bronze/Prata/Ouro/Platina/Diamante) —
+   * anel com degradê e brilho por trás, mais elaborado que `ringColor`. Pra
+   * usar nos avatares "hero" (Perfil, perfil de outro usuário), onde a
+   * personalização de verdade aparece.
+   */
+  frameTier?: string | null;
   /** Foto de perfil (se houver) — sem ela, cai pro círculo com iniciais de sempre. */
   uri?: string | null;
   /** Segurar o avatar abre a foto em tela cheia (só faz sentido quando tem `uri`). */
   zoomable?: boolean;
 }
 
+/**
+ * Moldura "de verdade": brilho suave atrás + anel em degradê nas cores da
+ * patente, tudo gerado em código (sem depender de nenhuma imagem pronta) —
+ * evolução do anel simples (`ringColor`) usado no resto do app.
+ */
+function TierFrame({ tier, size, children }: { tier: string; size: number; children: React.ReactNode }) {
+  const base = tierColor(tier);
+  const light = lighten(base, 0.4);
+  const ringWidth = Math.max(3, Math.round(size * 0.09));
+  const outer = size + ringWidth * 2;
+  const glow = outer + 12;
+
+  return (
+    <View style={{ width: glow, height: glow, alignItems: 'center', justifyContent: 'center' }}>
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          { borderRadius: glow / 2, backgroundColor: withAlpha(base, 0.3) },
+        ]}
+      />
+      <LinearGradient
+        colors={[light, base, light]}
+        start={{ x: 0.1, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
+        style={{
+          width: outer,
+          height: outer,
+          borderRadius: outer / 2,
+          padding: ringWidth,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {children}
+      </LinearGradient>
+    </View>
+  );
+}
+
 // Avatar circular com a foto de perfil (quando existe) ou iniciais do nome —
 // mesmo padrão visual do ProfileScreen, reutilizado em qualquer lugar que
 // mostre outro usuário (busca, feed).
-export function Avatar({ name, size = 40, ringColor, uri, zoomable }: Props) {
+export function Avatar({ name, size = 40, ringColor, frameTier, uri, zoomable }: Props) {
   const [zoomOpen, setZoomOpen] = useState(false);
 
   const photo = (
@@ -81,6 +128,14 @@ export function Avatar({ name, size = 40, ringColor, uri, zoomable }: Props) {
       <Text style={[styles.text, { fontSize: size * 0.38 }]}>{getInitials(name)}</Text>
     </LinearGradient>
   );
+
+  if (frameTier) {
+    return (
+      <TierFrame tier={frameTier} size={size}>
+        {circle}
+      </TierFrame>
+    );
+  }
 
   if (!ringColor) return circle;
 

@@ -10,6 +10,8 @@ export type RootStackParamList = {
   Notifications: undefined;
   /** Grade de conquistas — da própria pessoa ou de outra (`name` só ajusta o título). */
   Achievements: { userId: string; name?: string };
+  /** Escolher moldura de avatar e cor do mapa — sempre a própria pessoa. */
+  Customization: undefined;
 };
 
 export type MainTabParamList = {

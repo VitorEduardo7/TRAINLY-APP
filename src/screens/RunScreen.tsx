@@ -3,6 +3,7 @@ import { Alert, Animated, Linking, ScrollView, StyleSheet, View } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { TrainlyMap, TrainlyMarker } from '../components/TrainlyMap';
+import { MapTierBadge } from '../components/MapTierBadge';
 import * as Location from 'expo-location';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -35,6 +36,7 @@ import {
   paceMinPerKm,
   startButtonLabel,
 } from '../lib/geo';
+import { effectiveTier } from '../lib/rank';
 import { RootStackParamList } from '../navigation/types';
 
 type LatLon = { latitude: number; longitude: number };
@@ -354,16 +356,22 @@ export function RunScreen() {
   if (startPoint) mapMarkers.push({ id: 'start', coord: startPoint, variant: 'start' });
   if (current) mapMarkers.push({ id: 'current', coord: current, variant: 'current' });
 
+  // Aqui o trajeto é SEU (corrida ao vivo), então a cor é sua personalização
+  // escolhida — diferente do RouteDetailScreen, que mostra a de quem criou.
+  const mapTier = effectiveTier(profile?.xp ?? 0, profile?.equipped_map_tier);
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <TrainlyMap
         style={styles.map}
         center={center}
         path={path}
+        pathColor={mapTier.color}
         markers={mapMarkers}
         followSmoothly
         offlineHint="Sua corrida está sendo gravada normalmente — distância, tempo, ritmo e o trajeto para publicar como rota. Só o desenho do mapa precisa de internet."
       />
+      <MapTierBadge tierName={mapTier.name} color={mapTier.color} style={[styles.tierBadge, { top: insets.top + 10 }]} />
 
       <PressableScale
         onPress={() => {
@@ -475,6 +483,7 @@ function GpsDot({ color, live }: { color: string; live: boolean }) {
 
 const styles = StyleSheet.create({
   map: { flex: 1 },
+  tierBadge: { position: 'absolute', right: 16 },
   backBtn: {
     position: 'absolute',
     left: 16,

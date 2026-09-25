@@ -127,6 +127,13 @@ export function difficultyColor(difficulty: string, colors: Pick<TrainlyColors, 
   return colors.primary;
 }
 
+/** Cor de uma patente pelo nome (Bronze/Prata/Ouro/Platina/Diamante) — pra
+ *  moldura de avatar e cor do mapa personalizados. Cai pro Bronze se o nome
+ *  não bater com nenhuma (defesa contra dado inconsistente). */
+export function tierColor(name: string): string {
+  return RANKS.find((r) => r.name === name)?.color ?? RANKS[0].color;
+}
+
 /** Cor com transparência a partir de um hex `#rrggbb` (ex: fundo de ícone). */
 export function withAlpha(hex: string, alpha: number): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex);

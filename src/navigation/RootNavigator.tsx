@@ -13,6 +13,7 @@ import { RouteDetailScreen } from '../screens/RouteDetailScreen';
 import { UserProfileScreen } from '../screens/UserProfileScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { AchievementsScreen } from '../screens/AchievementsScreen';
+import { CustomizationScreen } from '../screens/CustomizationScreen';
 import { MainTabs } from './MainTabs';
 import { RootStackParamList } from './types';
 
@@ -85,6 +86,11 @@ export function RootNavigator() {
                 name="Achievements"
                 component={AchievementsScreen}
                 options={{ ...detailHeader, title: 'Conquistas' }}
+              />
+              <Stack.Screen
+                name="Customization"
+                component={CustomizationScreen}
+                options={{ ...detailHeader, title: 'Personalização' }}
               />
             </>
           ) : (

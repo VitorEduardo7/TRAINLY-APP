@@ -14,8 +14,9 @@ import { SkeletonCard } from '../components/Skeleton';
 import { EmptyState } from '../components/EmptyState';
 import { Text } from '../components/Typography';
 import { tapLight } from '../lib/haptics';
-import { boundsOf, LatLon, TrainlyMap, TrainlyMarker } from '../components/TrainlyMap';
+import { boundsOf, LatLon, TrainlyMap, TrainlyMarker, TrainlyPathOverlay } from '../components/TrainlyMap';
 import { formatKm } from '../lib/geo';
+import { effectiveTier } from '../lib/rank';
 import { TrainlyRoute } from '../types/models';
 import { RootStackParamList } from '../navigation/types';
 
@@ -47,6 +48,20 @@ export function ExploreRoutesScreen() {
           id: r.id,
           coord: { latitude: r.path[0][0], longitude: r.path[0][1] },
           variant: 'start' as const,
+        })),
+    [routes],
+  );
+  // Cada rota no traçado da patente de quem a criou — o mesmo mapa fica com
+  // um mosaico de cores em vez de tudo azul, e ajuda a "sentir" quem no app
+  // já correu bastante só de olhar o Explorar.
+  const routePaths = useMemo<TrainlyPathOverlay[]>(
+    () =>
+      routes
+        .filter((r) => r.path?.length > 1)
+        .map((r) => ({
+          id: r.id,
+          coords: r.path.map(([latitude, longitude]) => ({ latitude, longitude })),
+          color: effectiveTier(r.creator_xp ?? 0, r.creator_map_tier).color,
         })),
     [routes],
   );
@@ -102,6 +117,7 @@ export function ExploreRoutesScreen() {
                 style={styles.map}
                 bounds={bounds}
                 center={startPoints[0] ?? SAO_PAULO}
+                paths={routePaths}
                 markers={markers}
                 offlineHint="A lista de rotas abaixo continua disponível — só o desenho do mapa precisa de internet."
               />
