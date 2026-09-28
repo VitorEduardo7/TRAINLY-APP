@@ -245,7 +245,7 @@ function FeedCard({
   onToggleLike: () => void;
   onOpenProfile: (userId: string, name?: string) => void;
 }) {
-  const { colors } = useTheme();
+  const { colors, colorBlindMode } = useTheme();
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [hasLoadedComments, setHasLoadedComments] = useState(false);
   const [commentText, setCommentText] = useState('');
@@ -318,7 +318,7 @@ function FeedCard({
     ]);
   };
 
-  const typeColor = sportColor(activity.type);
+  const typeColor = sportColor(activity.type, colorBlindMode);
 
   return (
     <Card style={styles.feedCard}>

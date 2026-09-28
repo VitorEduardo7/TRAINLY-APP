@@ -16,6 +16,7 @@ import { AchievementsScreen } from '../screens/AchievementsScreen';
 import { CustomizationScreen } from '../screens/CustomizationScreen';
 import { ClanWarScreen } from '../screens/ClanWarScreen';
 import { StreakScreen } from '../screens/StreakScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
 import { MainTabs } from './MainTabs';
 import { RootStackParamList } from './types';
 
@@ -103,6 +104,11 @@ export function RootNavigator() {
                 name="Streak"
                 component={StreakScreen}
                 options={{ ...detailHeader, title: 'Sequência' }}
+              />
+              <Stack.Screen
+                name="Settings"
+                component={SettingsScreen}
+                options={{ ...detailHeader, title: 'Configurações' }}
               />
             </>
           ) : (

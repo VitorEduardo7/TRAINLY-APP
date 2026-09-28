@@ -9,12 +9,14 @@ import {
   StyleProp,
 } from 'react-native';
 import { interFamily, useFontsReady } from '../theme/fonts';
+import { FONT_SCALE_MULTIPLIER, useTheme } from '../theme/ThemeContext';
 
 /**
  * `Text` e `TextInput` do app: iguais aos do React Native, só que aplicam a
- * fonte Inter no peso certo (ver `interFamily`). Todas as telas importam
- * daqui em vez de 'react-native', então a tipografia fica consistente sem
- * precisar lembrar de `fontFamily` em cada estilo.
+ * fonte Inter no peso certo (ver `interFamily`) e o tamanho de texto das
+ * opções de acessibilidade (Configurações → Acessibilidade). Todas as telas
+ * importam daqui em vez de 'react-native', então tipografia e escala de
+ * texto ficam consistentes sem precisar lembrar disso em cada estilo.
  */
 
 /** Marca que estamos dentro de outro <Text> — texto aninhado herda a fonte do pai. */
@@ -33,10 +35,31 @@ function fontOverride(style: StyleProp<TextStyle>, nested: boolean, ready: boole
   return { fontFamily: interFamily(flat.fontWeight), fontWeight: 'normal' };
 }
 
+/** Multiplica o `fontSize` do estilo pela escala escolhida em Acessibilidade — só quando o estilo já define um tamanho explícito, pra não mexer em texto que usa o padrão do sistema. */
+function scaleOverride(style: StyleProp<TextStyle>, scale: number): TextStyle | null {
+  if (scale === 1) return null;
+  const flat = (StyleSheet.flatten(style) ?? {}) as TextStyle;
+  if (typeof flat.fontSize !== 'number') return null;
+  return { fontSize: flat.fontSize * scale };
+}
+
+function combinedOverride(
+  style: StyleProp<TextStyle>,
+  nested: boolean,
+  ready: boolean,
+  scale: number,
+): TextStyle | null {
+  const family = fontOverride(style, nested, ready);
+  const size = scaleOverride(style, scale);
+  if (!family && !size) return null;
+  return { ...family, ...size };
+}
+
 export function Text({ style, children, ...rest }: TextProps) {
   const ready = useFontsReady();
   const nested = useContext(InsideText);
-  const override = fontOverride(style, nested, ready);
+  const { fontScale } = useTheme();
+  const override = combinedOverride(style, nested, ready, FONT_SCALE_MULTIPLIER[fontScale]);
   return (
     <RNText {...rest} style={override ? [style, override] : style}>
       <InsideText.Provider value={true}>{children}</InsideText.Provider>
@@ -46,6 +69,7 @@ export function Text({ style, children, ...rest }: TextProps) {
 
 export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextInput({ style, ...rest }, ref) {
   const ready = useFontsReady();
-  const override = fontOverride(style, false, ready);
+  const { fontScale } = useTheme();
+  const override = combinedOverride(style, false, ready, FONT_SCALE_MULTIPLIER[fontScale]);
   return <RNTextInput ref={ref} {...rest} style={override ? [style, override] : style} />;
 });

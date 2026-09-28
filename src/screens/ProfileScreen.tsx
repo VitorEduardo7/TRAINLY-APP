@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -25,7 +25,6 @@ import { FadeIn } from '../components/Motion';
 import { Text } from '../components/Typography';
 import { effectiveTier } from '../lib/rank';
 import { RootStackParamList } from '../navigation/types';
-import { warning } from '../lib/haptics';
 import { activityStats } from '../lib/stats';
 import { formatClock, formatKm } from '../lib/geo';
 import { levelInfo } from '../lib/rank';
@@ -36,8 +35,8 @@ const AVATAR_SIZE = 88;
 const AVATAR_FRAME_SIZE = avatarFrameSize(AVATAR_SIZE);
 
 export function ProfileScreen() {
-  const { colors, mode, toggle } = useTheme();
-  const { profile, refreshProfile, signOut } = useAuth();
+  const { colors } = useTheme();
+  const { profile, refreshProfile } = useAuth();
   const { activities, loading, reload } = useActivities(profile?.id);
   const { streak } = useStreak(profile?.id);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -77,14 +76,6 @@ export function ProfileScreen() {
     await refreshProfile();
   };
 
-  const handleLogout = () => {
-    warning();
-    Alert.alert('Trainly', 'Tem certeza que quer sair da sua conta?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Sair', style: 'destructive', onPress: () => signOut() },
-    ]);
-  };
-
   return (
     // Só o topo — a tab bar de baixo já respeita a área segura inferior sozinha.
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.background }}>
@@ -120,9 +111,9 @@ export function ProfileScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <TrainlyButton
-              title={mode === 'dark' ? 'Modo claro' : 'Modo escuro'}
+              title="Configurações"
               variant="secondary"
-              onPress={toggle}
+              onPress={() => navigation.navigate('Settings')}
             />
           </View>
         </FadeIn>
@@ -183,8 +174,6 @@ export function ProfileScreen() {
             </View>
           </Card>
         </FadeIn>
-
-        <TrainlyButton title="Sair da conta" variant="danger" onPress={handleLogout} />
 
         <EditProfileModal
           visible={editVisible}

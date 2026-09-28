@@ -3,19 +3,14 @@ import { Pressable, StyleProp, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { withAlpha } from '../theme/colors';
+import { streakColors, withAlpha } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { effectiveStreak, StreakRow } from '../lib/streak';
 import { Text } from './Typography';
 import { tapLight } from '../lib/haptics';
 import { RootStackParamList } from '../navigation/types';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
-
-// Laranja de "fogo" e azul de "gelo" — cores próprias (fora da paleta do
-// app), porque o significado aqui é universal (streak quente vs. congelada)
-// e mais reconhecível assim do que reaproveitando primary/danger.
-const FIRE = '#f97316';
-const ICE = '#38bdf8';
 
 interface Props {
   streak: StreakRow | null | undefined;
@@ -41,6 +36,8 @@ interface Props {
  */
 export function StreakBadge({ streak, userId, ownerFirstName, size = 'md', style }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { colorBlindMode } = useTheme();
+  const { fire: FIRE, ice: ICE } = streakColors(colorBlindMode);
   const effective = effectiveStreak(streak);
   if (effective.status === 'none') return null;
 

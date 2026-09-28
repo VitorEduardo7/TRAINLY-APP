@@ -9,23 +9,41 @@ import {
   StyleProp,
   ViewStyle,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * Animações de acabamento do app, todas com a API `Animated` que já vem no
  * React Native (sem biblioteca extra) e rodando no thread nativo
  * (`useNativeDriver`) sempre que possível — não disputam com a lógica da tela.
  *
- * Respeitam o "Reduzir movimento" do celular: com ele ligado, tudo aparece
- * direto, sem animação.
+ * Respeitam o "Reduzir movimento": do celular (ajuste de sistema) OU do app
+ * (Configurações → Acessibilidade → "Reduzir animações", pra quem quer isso
+ * só dentro do Trainly sem mexer no ajuste do sistema inteiro). Qualquer um
+ * dos dois ligado já é suficiente pra tudo aparecer direto, sem animação.
  */
 
-let reduceMotion = false;
+const MANUAL_REDUCE_MOTION_KEY = 'trainly_a11y_reduce_motion';
+
+let systemReduceMotion = false;
+let manualReduceMotion = false;
 const reduceMotionListeners = new Set<(v: boolean) => void>();
+
+function notifyReduceMotionListeners() {
+  const combined = systemReduceMotion || manualReduceMotion;
+  reduceMotionListeners.forEach((fn) => fn(combined));
+}
 
 AccessibilityInfo.isReduceMotionEnabled()
   .then((v) => {
-    reduceMotion = v;
-    reduceMotionListeners.forEach((fn) => fn(v));
+    systemReduceMotion = v;
+    notifyReduceMotionListeners();
+  })
+  .catch(() => {});
+
+AsyncStorage.getItem(MANUAL_REDUCE_MOTION_KEY)
+  .then((saved) => {
+    manualReduceMotion = saved === '1';
+    notifyReduceMotionListeners();
   })
   .catch(() => {});
 
@@ -34,20 +52,31 @@ AccessibilityInfo.isReduceMotionEnabled()
 // aberto não tinha efeito nenhum até reiniciar. Com o listener, atualiza na
 // hora pra qualquer novo toque/animação que começar dali pra frente.
 AccessibilityInfo.addEventListener('reduceMotionChanged', (v: boolean) => {
-  reduceMotion = v;
-  reduceMotionListeners.forEach((fn) => fn(v));
+  systemReduceMotion = v;
+  notifyReduceMotionListeners();
 });
 
+/** Liga/desliga o override manual (tela de Configurações), persistindo a escolha. */
+export function setManualReduceMotion(value: boolean): void {
+  manualReduceMotion = value;
+  notifyReduceMotionListeners();
+  AsyncStorage.setItem(MANUAL_REDUCE_MOTION_KEY, value ? '1' : '0').catch(() => {});
+}
+
+export function getManualReduceMotion(): boolean {
+  return manualReduceMotion;
+}
+
 export function prefersReducedMotion(): boolean {
-  return reduceMotion;
+  return systemReduceMotion || manualReduceMotion;
 }
 
 /** Versão reativa: o componente re-renderiza sozinho se o ajuste mudar com o app aberto. */
 export function useReducedMotion(): boolean {
-  const [value, setValue] = useState(reduceMotion);
+  const [value, setValue] = useState(prefersReducedMotion());
   useEffect(() => {
     reduceMotionListeners.add(setValue);
-    setValue(reduceMotion);
+    setValue(prefersReducedMotion());
     return () => {
       reduceMotionListeners.delete(setValue);
     };
@@ -67,10 +96,10 @@ interface FadeInProps {
 
 /** Entrada suave: aparece subindo alguns pixels. Roda uma vez, ao montar. */
 export function FadeIn({ children, delay = 0, duration = 420, offset = 14, style }: FadeInProps) {
-  const progress = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
+  const progress = useRef(new Animated.Value(prefersReducedMotion() ? 1 : 0)).current;
 
   useEffect(() => {
-    if (reduceMotion) return;
+    if (prefersReducedMotion()) return;
     const anim = Animated.timing(progress, {
       toValue: 1,
       duration,
@@ -121,7 +150,7 @@ export function PressableScale({ children, style, scaleTo = 0.97, onPressIn, onP
   const scale = useRef(new Animated.Value(1)).current;
 
   const springTo = (toValue: number) => {
-    if (reduceMotion) return;
+    if (prefersReducedMotion()) return;
     Animated.spring(scale, { toValue, useNativeDriver: true, speed: 40, bounciness: 7 }).start();
   };
 
@@ -151,7 +180,7 @@ export function PressableScale({ children, style, scaleTo = 0.97, onPressIn, onP
 export function usePulse(duration = 900): Animated.Value {
   const value = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    if (reduceMotion) return;
+    if (prefersReducedMotion()) return;
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(value, { toValue: 1, duration, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),

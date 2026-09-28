@@ -17,6 +17,8 @@ export type RootStackParamList = {
   /** Detalhe da sequência semanal — calendário seg-dom + atividades da
    *  semana. Da própria pessoa ou de outra (`name` só ajusta o título). */
   Streak: { userId: string; name?: string };
+  /** Configurações gerais: conta (e-mail/senha), acessibilidade, sessão. */
+  Settings: undefined;
 };
 
 export type MainTabParamList = {

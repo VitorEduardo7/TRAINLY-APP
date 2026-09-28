@@ -1,7 +1,8 @@
 import React from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { SPORT_COLORS, withAlpha } from '../theme/colors';
+import { ColorBlindMode, sportColor as resolveSportColor, withAlpha } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 /**
  * Ícones das modalidades (corrida, pedal, natação, caminhada) desenhados em
@@ -24,22 +25,25 @@ const PATHS: Record<string, string> = {
     'M14.12,10H19V8.2H15.38L13.38,4.87C13.08,4.37 12.54,4.03 11.92,4.03C11.74,4.03 11.58,4.06 11.42,4.11L6,5.8V11H7.8V7.33L9.91,6.67L6,22H7.8L10.67,13.89L13,17V22H14.8V15.59L12.31,11.05L13.04,8.18M14,3.8C15,3.8 15.8,3 15.8,2C15.8,1 15,0.2 14,0.2C13,0.2 12.2,1 12.2,2C12.2,3 13,3.8 14,3.8Z',
 };
 
-export function sportColor(type: string): string {
-  return SPORT_COLORS[type] ?? SPORT_COLORS.Corrida;
+/** Cor da modalidade — passe o `colorBlindMode` de `useTheme()` pra já vir ajustada. */
+export function sportColor(type: string, mode?: ColorBlindMode): string {
+  return resolveSportColor(type, mode);
 }
 
 /** Só o desenho, na cor pedida (ex: dentro de um chip ou de um texto). */
 export function SportGlyph({ type, size = 20, color }: { type: string; size?: number; color?: string }) {
+  const { colorBlindMode } = useTheme();
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
-      <Path d={PATHS[type] ?? PATHS.Corrida} fill={color ?? sportColor(type)} />
+      <Path d={PATHS[type] ?? PATHS.Corrida} fill={color ?? resolveSportColor(type, colorBlindMode)} />
     </Svg>
   );
 }
 
 /** Desenho num quadrado arredondado com a cor da modalidade ao fundo. */
 export function SportBadge({ type, size = 42, style }: { type: string; size?: number; style?: StyleProp<ViewStyle> }) {
-  const color = sportColor(type);
+  const { colorBlindMode } = useTheme();
+  const color = resolveSportColor(type, colorBlindMode);
   return (
     <View
       style={[

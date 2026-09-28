@@ -117,6 +117,31 @@ export const SPORT_COLORS: Record<string, string> = {
   Natação: '#06b6d4',
 };
 
+// Variantes da cor de modalidade pro modo daltonismo ativo. Protanopia e
+// deuteranopia trocam o verde da Caminhada (risco clássico de confusão
+// vermelho-verde) por um verde-azulado, e afastam o roxo da Natação do
+// ciano/azul das outras duas. Tritanopia troca o eixo, então mantém
+// vermelho/verde normais (não são o problema nesse tipo) e afasta a Natação
+// do cian/azul, que é onde mora a confusão azul-amarelo.
+const SPORT_COLORS_RG_SAFE: Record<string, string> = {
+  Corrida: '#0072B2',
+  Ciclismo: '#E69F00',
+  Caminhada: '#009E73',
+  Natação: '#CC79A7',
+};
+const SPORT_COLORS_BY_SAFE: Record<string, string> = {
+  Corrida: '#2f7dfd',
+  Ciclismo: '#DC2626',
+  Caminhada: '#16A34A',
+  Natação: '#9333EA',
+};
+
+/** Cor da modalidade, já ajustada pro modo de daltonismo ativo (se houver). */
+export function sportColor(type: string, mode?: ColorBlindMode): string {
+  const table = mode === 'tritanopia' ? SPORT_COLORS_BY_SAFE : mode ? SPORT_COLORS_RG_SAFE : SPORT_COLORS;
+  return table[type] ?? table.Corrida;
+}
+
 /**
  * Cor de destaque por dificuldade de rota (Fácil/Moderada/Difícil) — usada em
  * Explorar Rotas e no detalhe da rota, antes duplicada como função local em
@@ -155,6 +180,109 @@ export function lighten(hex: string, amount: number): string {
   return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
 }
 
-export function getColors(mode: ThemeMode): TrainlyColors {
-  return mode === 'dark' ? darkColors : lightColors;
+/** Os três tipos de daltonismo cobertos — cada um troca a rota errada de
+ *  cores. `null`/`undefined` = nenhum ajuste (paleta padrão). */
+export type ColorBlindMode = 'protanopia' | 'deuteranopia' | 'tritanopia' | null;
+
+export interface AccessibilityOptions {
+  /**
+   * Troca as cores semânticas (sucesso/perigo/alerta) por uma paleta ajustada
+   * pro tipo de daltonismo escolhido. O azul da marca (`primary`/`accent`)
+   * não muda em nenhum modo — já é uma cor seguramente distinguível nos três
+   * tipos, então mexer nela só tiraria identidade visual sem ganho.
+   *
+   * IMPORTANTE (honestidade sobre a precisão): protanopia e deuteranopia são
+   * os dois tipos de confusão vermelho-verde — geneticamente diferentes, mas
+   * o ajuste de cor que ajuda é quase o mesmo nos dois (evitar vermelho vs.
+   * verde puros, usar contraste de claridade). Aqui eles usam paletas bem
+   * parecidas, com uma pequena diferença de tom. Tritanopia (confusão
+   * azul-amarelo, bem mais rara) é o caso realmente diferente, e usa uma
+   * paleta própria. Nenhuma das três foi validada com software de simulação
+   * — são escolhas informadas por guias de design acessível, não uma
+   * correção calibrada por tipo.
+   */
+  colorBlindMode?: ColorBlindMode;
+  /** Texto secundário e bordas mais fortes, pra mais contraste com o fundo. */
+  highContrast?: boolean;
+}
+
+// Protanopia e deuteranopia: confusão vermelho-verde. Base Okabe-Ito
+// (Okabe & Ito, 2008), que evita colocar vermelho e verde puros lado a lado.
+const PROTANOPIA_SAFE = {
+  success: '#0072B2', // azul forte — não compete com o eixo vermelho-verde
+  danger: '#D55E00', // vermelhão/laranja-queimado, bem mais escuro que o warning
+  warning: '#E69F00', // laranja claro
+};
+
+const DEUTERANOPIA_SAFE = {
+  success: '#009E73', // verde-azulado (bluish green) — o "verde seguro" mais usado
+  danger: '#CC3311', // vermelho-alaranjado, puxado pro laranja pra não ler como marrom
+  warning: '#E69F00', // laranja
+};
+
+// Tritanopia: confusão azul-amarelo (rara). Aqui o problema é o oposto —
+// vermelho e verde continuam distinguíveis, então mantemos tons "normais"
+// pra eles e trocamos só o alerta, que normalmente é amarelo/laranja (fácil
+// de confundir com rosa/roxo nesse tipo) por um roxo bem definido.
+const TRITANOPIA_SAFE = {
+  success: '#2E8B57', // verde-mar — a percepção de verde não é afetada
+  danger: '#DC2626', // vermelho puro — idem
+  warning: '#9333EA', // roxo, longe do eixo azul-amarelo que causa confusão
+};
+
+const COLOR_BLIND_PALETTES: Record<Exclude<ColorBlindMode, null | undefined>, { success: string; danger: string; warning: string }> = {
+  protanopia: PROTANOPIA_SAFE,
+  deuteranopia: DEUTERANOPIA_SAFE,
+  tritanopia: TRITANOPIA_SAFE,
+};
+
+export interface StreakColors {
+  fire: string;
+  ice: string;
+  rest: string;
+}
+
+// Cores fixas do streak (fora da paleta do app de propósito — ver
+// `StreakBadge.tsx`), também ajustadas por modo. Laranja/azul (fogo/gelo) já
+// é um par bem seguro pros três tipos, mas "descanso" (um azul bem escuro)
+// ficava perto demais do gelo pra quem tem tritanopia — nesse modo troca por
+// um cinza-arroxeado neutro, sem depender do eixo azul-amarelo.
+export function streakColors(mode?: ColorBlindMode): StreakColors {
+  if (mode === 'tritanopia') {
+    return { fire: '#f97316', ice: '#38bdf8', rest: '#4b4458' };
+  }
+  return { fire: '#f97316', ice: '#38bdf8', rest: '#1e3a5f' };
+}
+
+function withHighContrast(c: TrainlyColors, mode: ThemeMode): TrainlyColors {
+  return {
+    ...c,
+    // No escuro clareia o texto secundário; no claro escurece — os dois
+    // reduzem a distância de contraste até o texto principal.
+    textMuted: mode === 'dark' ? lighten(c.textMuted, 0.35) : mixTowardBlack(c.textMuted, 0.35),
+    border: mode === 'dark' ? 'rgba(255,255,255,0.22)' : '#b8b8c2',
+  };
+}
+
+/** Escurece um hex `#rrggbb` misturando com preto — irmã de `lighten`. */
+function mixTowardBlack(hex: string, amount: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const mixChannel = (c: number) => Math.round(c * (1 - amount));
+  const r = mixChannel((n >> 16) & 255);
+  const g = mixChannel((n >> 8) & 255);
+  const b = mixChannel(n & 255);
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+}
+
+export function getColors(mode: ThemeMode, options?: AccessibilityOptions): TrainlyColors {
+  let c = mode === 'dark' ? darkColors : lightColors;
+  if (options?.colorBlindMode) {
+    c = { ...c, ...COLOR_BLIND_PALETTES[options.colorBlindMode] };
+  }
+  if (options?.highContrast) {
+    c = withHighContrast(c, mode);
+  }
+  return c;
 }

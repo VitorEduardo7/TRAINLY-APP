@@ -4,7 +4,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
-import { withAlpha } from '../theme/colors';
+import { streakColors, withAlpha } from '../theme/colors';
 import { useAuth } from '../hooks/useAuth';
 import { useStreak } from '../hooks/useStreak';
 import { useActivities } from '../hooks/useActivities';
@@ -20,13 +20,6 @@ import { RootStackParamList } from '../navigation/types';
 
 type StreakRouteProp = RouteProp<RootStackParamList, 'Streak'>;
 
-// Mesmas cores do StreakBadge (fogo/gelo) — fora da paleta do app de
-// propósito, já que o significado é universal e mais reconhecível assim.
-const FIRE = '#f97316';
-const ICE = '#38bdf8';
-// "Azul meio escuro" pedido pro dia de descanso — bem diferente do primary
-// do app (#2f7dfd), pra não parecer "mais um dia com atividade" de relance.
-const REST = '#1e3a5f';
 const CHART_HEIGHT = 88;
 const DAY_LABELS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
@@ -46,7 +39,8 @@ function shortDate(iso: string): string {
  * que existia antes.
  */
 export function StreakScreen() {
-  const { colors } = useTheme();
+  const { colors, colorBlindMode } = useTheme();
+  const { fire: FIRE, ice: ICE, rest: REST } = streakColors(colorBlindMode);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { params } = useRoute<StreakRouteProp>();
   const { profile: me } = useAuth();
@@ -202,7 +196,8 @@ function DayBar({
   isFuture: boolean;
   maxKm: number;
 }) {
-  const { colors } = useTheme();
+  const { colors, colorBlindMode } = useTheme();
+  const { fire: FIRE, rest: REST } = streakColors(colorBlindMode);
   // Dia com treino cresce proporcional ao km (mínimo pra sempre aparecer
   // algo); descanso fica numa barrinha baixa fixa; dia futuro só um traço
   // pontilhado, sem cor — ainda não é nem treino nem descanso de verdade.
