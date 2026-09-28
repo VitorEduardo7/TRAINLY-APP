@@ -7,9 +7,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useActivities } from '../hooks/useActivities';
+import { useStreak } from '../hooks/useStreak';
 import { supabase } from '../lib/supabase';
 import { Card } from '../components/Card';
-import { Avatar } from '../components/Avatar';
+import { Avatar, avatarFrameSize } from '../components/Avatar';
 import { RankWidget } from '../components/RankWidget';
 import { RankTrail } from '../components/RankTrail';
 import { TrainlyButton } from '../components/TrainlyButton';
@@ -19,6 +20,7 @@ import { SectionTitle } from '../components/SectionTitle';
 import { StatTile } from '../components/StatTile';
 import { AchievementsPreviewCard } from '../components/AchievementsPreviewCard';
 import { CustomizationPreviewCard } from '../components/CustomizationPreviewCard';
+import { StreakBadge } from '../components/StreakBadge';
 import { FadeIn } from '../components/Motion';
 import { Text } from '../components/Typography';
 import { effectiveTier } from '../lib/rank';
@@ -28,10 +30,16 @@ import { activityStats } from '../lib/stats';
 import { formatClock, formatKm } from '../lib/geo';
 import { levelInfo } from '../lib/rank';
 
+// Fixo porque o cálculo do tamanho da moldura (`avatarFrameSize`) depende do
+// `size` passado ao Avatar — precisa ser o mesmo valor nos dois lugares.
+const AVATAR_SIZE = 88;
+const AVATAR_FRAME_SIZE = avatarFrameSize(AVATAR_SIZE);
+
 export function ProfileScreen() {
   const { colors, mode, toggle } = useTheme();
   const { profile, refreshProfile, signOut } = useAuth();
   const { activities, loading, reload } = useActivities(profile?.id);
+  const { streak } = useStreak(profile?.id);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [editVisible, setEditVisible] = useState(false);
 
@@ -88,7 +96,14 @@ export function ProfileScreen() {
         <ScreenHeader wash="profile" title="Perfil" />
 
         <FadeIn style={styles.header}>
-          <Avatar name={profile?.name ?? '?'} size={88} uri={profile?.avatar_url} frameTier={frameTier.name} zoomable />
+          <View style={{ width: AVATAR_FRAME_SIZE, height: AVATAR_FRAME_SIZE }}>
+            <Avatar name={profile?.name ?? '?'} size={AVATAR_SIZE} uri={profile?.avatar_url} frameTier={frameTier.name} zoomable />
+            {/* Do ladinho da moldura, não escondido embaixo do nome — é o
+                primeiro emblema que a pessoa deveria notar no próprio perfil. */}
+            <View style={styles.streakAnchor}>
+              <StreakBadge streak={streak} userId={profile?.id} size="sm" />
+            </View>
+          </View>
           <Text style={[styles.name, { color: colors.textPrimary }]}>{profile?.name}</Text>
           {profile?.location ? (
             <View style={styles.locationRow}>
@@ -185,6 +200,9 @@ export function ProfileScreen() {
 const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 130 },
   header: { alignItems: 'center', marginBottom: 20 },
+  // Grudado fora da moldura (não por cima do anel) — mais pra direita ainda
+  // do que a primeira tentativa, pra sair bem clara da borda.
+  streakAnchor: { position: 'absolute', right: -22, bottom: -2 },
   name: { fontSize: 20, fontWeight: '900', marginTop: 12 },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
   location: { fontSize: 13, fontWeight: '600' },

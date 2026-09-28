@@ -94,7 +94,7 @@ export function useClubDetail(clubId: string | undefined, userId: string | undef
       supabase.from('clubs').select('*').eq('id', clubId).single(),
       supabase
         .from('club_members')
-        .select('club_id, user_id, role, joined_at, profile:profiles(id, name, avatar_url)')
+        .select('club_id, user_id, role, joined_at, silenced, profile:profiles(id, name, avatar_url)')
         .eq('club_id', clubId),
       supabase.from('club_challenges').select('*').eq('club_id', clubId).order('start_date', { ascending: false }),
     ]);
@@ -140,9 +140,41 @@ export function useClubDetail(clubId: string | undefined, userId: string | undef
     [clubId, userId, load],
   );
 
+  // Ação de admin: liga/desliga o silenciamento de um membro. Silenciado
+  // continua no clube, mas some dos rankings (desafios aqui, Guerra de Clã
+  // no banco) enquanto durar — ver `set_club_member_silenced` no Supabase.
+  const setMemberSilenced = useCallback(
+    async (targetUserId: string, silenced: boolean) => {
+      if (!clubId) throw new Error('Dados inválidos');
+      const { error } = await supabase.rpc('set_club_member_silenced', {
+        p_club_id: clubId,
+        p_user_id: targetUserId,
+        p_silenced: silenced,
+      });
+      if (error) throw error;
+      await load();
+    },
+    [clubId, load],
+  );
+
+  // Ação de admin: remove outra pessoa do clube (diferente de `leaveThisClub`,
+  // que é a própria pessoa saindo). Ver `kick_club_member` no Supabase.
+  const kickMember = useCallback(
+    async (targetUserId: string) => {
+      if (!clubId) throw new Error('Dados inválidos');
+      const { error } = await supabase.rpc('kick_club_member', { p_club_id: clubId, p_user_id: targetUserId });
+      if (error) throw error;
+      await load();
+    },
+    [clubId, load],
+  );
+
   const getLeaderboard = useCallback(
     async (challenge: ClubChallenge): Promise<ChallengeProgress[]> => {
-      const memberIds = members.map((m) => m.user_id);
+      // Membro silenciado fica de fora do ranking do desafio — mesma regra
+      // aplicada na Guerra de Clã (get_clan_war_leaderboard/members no banco).
+      const activeMembers = members.filter((m) => !m.silenced);
+      const memberIds = activeMembers.map((m) => m.user_id);
       if (memberIds.length === 0) return [];
 
       const { data: activityRows } = await supabase
@@ -158,7 +190,7 @@ export function useClubDetail(clubId: string | undefined, userId: string | undef
       }
 
       const goalKm = Number(challenge.goal_km);
-      return members
+      return activeMembers
         .map((m) => {
           const km = totals.get(m.user_id) ?? 0;
           return {
@@ -186,5 +218,7 @@ export function useClubDetail(clubId: string | undefined, userId: string | undef
     leaveThisClub,
     createChallenge,
     getLeaderboard,
+    setMemberSilenced,
+    kickMember,
   };
 }

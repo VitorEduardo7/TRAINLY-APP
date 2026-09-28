@@ -91,6 +91,18 @@ function TierFrame({ tier, size, children }: { tier: string; size: number; child
   );
 }
 
+/**
+ * Tamanho total do bloco renderizado por `<Avatar frameTier .../>` pra um
+ * dado `size` — a moldura de patente soma o anel + o brilho por trás, então
+ * o avatar "hero" ocupa mais espaço que só `size`. Usado por quem precisa
+ * ancorar algo (ex: o badge de streak) exatamente na borda da moldura.
+ */
+export function avatarFrameSize(size: number): number {
+  const ringWidth = Math.max(3, Math.round(size * 0.09));
+  const outer = size + ringWidth * 2;
+  return outer + 12;
+}
+
 // Avatar circular com a foto de perfil (quando existe) ou iniciais do nome —
 // mesmo padrão visual do ProfileScreen, reutilizado em qualquer lugar que
 // mostre outro usuário (busca, feed).

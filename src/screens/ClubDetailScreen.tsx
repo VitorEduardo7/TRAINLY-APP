@@ -9,15 +9,17 @@ import { useAuth } from '../hooks/useAuth';
 import { useClubDetail } from '../hooks/useClubs';
 import { Card } from '../components/Card';
 import { TrainlyButton } from '../components/TrainlyButton';
+import { ClanWarCard } from '../components/ClanWarCard';
 import { CreateChallengeModal } from '../components/CreateChallengeModal';
 import { SectionTitle } from '../components/SectionTitle';
 import { ProgressBar } from '../components/ProgressBar';
 import { EmptyState } from '../components/EmptyState';
-import { FadeIn } from '../components/Motion';
+import { FadeIn, PressableScale } from '../components/Motion';
+import { Avatar } from '../components/Avatar';
 import { Text } from '../components/Typography';
 import { selection, warning } from '../lib/haptics';
 import { formatKm } from '../lib/geo';
-import { ChallengeProgress, ClubChallenge } from '../types/models';
+import { ChallengeProgress, ClubChallenge, ClubMember } from '../types/models';
 import { RootStackParamList } from '../navigation/types';
 
 type ClubDetailRoute = RouteProp<RootStackParamList, 'ClubDetail'>;
@@ -55,6 +57,8 @@ export function ClubDetailScreen() {
     leaveThisClub,
     createChallenge,
     getLeaderboard,
+    setMemberSilenced,
+    kickMember,
   } = useClubDetail(params.clubId, profile?.id);
 
   const [modalVisible, setModalVisible] = useState(false);
@@ -62,6 +66,7 @@ export function ClubDetailScreen() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [boards, setBoards] = useState<Record<string, ChallengeProgress[]>>({});
   const [boardLoading, setBoardLoading] = useState<string | null>(null);
+  const [memberActionId, setMemberActionId] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -109,6 +114,39 @@ export function ClubDetailScreen() {
     Alert.alert('Trainly', 'Tem certeza que quer sair desse clube?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Sair', style: 'destructive', onPress: doMembershipAction },
+    ]);
+  };
+
+  const handleToggleSilence = async (member: ClubMember) => {
+    selection();
+    setMemberActionId(member.user_id);
+    try {
+      await setMemberSilenced(member.user_id, !member.silenced);
+    } catch (err: any) {
+      Alert.alert('Trainly', err.message ?? 'Não foi possível fazer isso agora.');
+    } finally {
+      setMemberActionId(null);
+    }
+  };
+
+  const handleKick = (member: ClubMember) => {
+    warning();
+    Alert.alert('Trainly', `Remover ${member.profile?.name ?? 'esse atleta'} do clube?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Remover',
+        style: 'destructive',
+        onPress: async () => {
+          setMemberActionId(member.user_id);
+          try {
+            await kickMember(member.user_id);
+          } catch (err: any) {
+            Alert.alert('Trainly', err.message ?? 'Não foi possível remover agora.');
+          } finally {
+            setMemberActionId(null);
+          }
+        },
+      },
     ]);
   };
 
@@ -179,6 +217,59 @@ export function ClubDetailScreen() {
           </View>
         </Card>
       </FadeIn>
+
+      {isMember && (
+        <FadeIn delay={60}>
+          <ClanWarCard clubId={club.id} />
+        </FadeIn>
+      )}
+
+      <SectionTitle title="Membros" style={{ marginTop: 26 }} />
+
+      {members.map((member, i) => {
+        const isSelf = member.user_id === profile?.id;
+        const busy = memberActionId === member.user_id;
+        return (
+          <FadeIn key={member.user_id} delay={Math.min(i, 5) * 50}>
+            <Card style={styles.memberItemRow}>
+              <Avatar name={member.profile?.name ?? 'Atleta'} uri={member.profile?.avatar_url} size={38} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.memberItemName, { color: colors.textPrimary }]} numberOfLines={1}>
+                  {member.profile?.name ?? 'Atleta'}
+                  {isSelf ? ' (você)' : ''}
+                </Text>
+                <Text style={[styles.memberItemMeta, { color: colors.textMuted }]}>
+                  {member.role === 'admin' ? 'Admin' : 'Membro'}
+                  {member.silenced ? ' · silenciado' : ''}
+                </Text>
+              </View>
+              {busy ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                isAdmin &&
+                !isSelf && (
+                  <View style={styles.memberItemActions}>
+                    <PressableScale
+                      onPress={() => handleToggleSilence(member)}
+                      hitSlop={8}
+                      accessibilityLabel={member.silenced ? 'Tirar silêncio' : 'Silenciar'}
+                    >
+                      <Ionicons
+                        name={member.silenced ? 'volume-mute' : 'volume-high-outline'}
+                        size={19}
+                        color={member.silenced ? colors.warning : colors.textMuted}
+                      />
+                    </PressableScale>
+                    <PressableScale onPress={() => handleKick(member)} hitSlop={8} accessibilityLabel="Remover do clube">
+                      <Ionicons name="close-circle-outline" size={20} color={colors.danger} />
+                    </PressableScale>
+                  </View>
+                )
+              )}
+            </Card>
+          </FadeIn>
+        );
+      })}
 
       <SectionTitle
         title="Desafios"
@@ -306,6 +397,10 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 20, paddingBottom: 40 },
   heroCard: { overflow: 'hidden' },
+  memberItemRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10, paddingVertical: 12 },
+  memberItemName: { fontSize: 14, fontWeight: '700' },
+  memberItemMeta: { fontSize: 11.5, fontWeight: '600', marginTop: 2 },
+  memberItemActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   heroTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   heroIcon: { width: 56, height: 56, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   name: { fontSize: 21, fontWeight: '800', letterSpacing: -0.3 },

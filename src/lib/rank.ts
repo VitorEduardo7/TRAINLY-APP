@@ -41,6 +41,25 @@ export function xpFromActivity(distanceKm: number, durationSec: number): number 
   return Math.max(5, Math.round(base + timeBonus));
 }
 
+// Ritmo assumido (min/km) por dificuldade — só pra ESTIMAR o XP de uma rota
+// ainda não percorrida (ver `estimateRouteXp`). Dificuldade maior = ritmo
+// mais lento assumido = XP estimado maior, o que casa com o pedido de que
+// "mais XP" e "mais difícil" andem juntos no filtro do Explorar Rotas.
+const ROUTE_PACE_BY_DIFFICULTY: Record<string, number> = { Fácil: 5.5, Moderada: 7, Difícil: 9 };
+
+/**
+ * XP estimado de uma rota publicada, antes de alguém percorrê-la.
+ * `xpFromActivity` precisa da duração real, que só existe DEPOIS da
+ * corrida — aqui assume um ritmo típico pela dificuldade cadastrada, só pra
+ * dar uma noção e servir de critério de ordenação no Explorar Rotas. Nunca é
+ * o XP que a pessoa vai ganhar de verdade — isso sempre depende do
+ * desempenho real dela quando for correr.
+ */
+export function estimateRouteXp(distanceKm: number, difficulty: string): number {
+  const assumedPace = ROUTE_PACE_BY_DIFFICULTY[difficulty] ?? 6.5;
+  return Math.max(5, Math.round(distanceKm * (10 + assumedPace)));
+}
+
 // --- Trilha de patentes (Bronze -> Diamante) --------------------------------
 
 /**

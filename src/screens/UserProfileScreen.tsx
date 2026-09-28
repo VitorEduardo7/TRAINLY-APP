@@ -1,28 +1,36 @@
 import React, { useLayoutEffect } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useUserProfile } from '../hooks/useUserProfile';
+import { useStreak } from '../hooks/useStreak';
 import { Card } from '../components/Card';
-import { Avatar } from '../components/Avatar';
+import { Avatar, avatarFrameSize } from '../components/Avatar';
 import { RankWidget } from '../components/RankWidget';
 import { RankTrail } from '../components/RankTrail';
 import { TrainlyButton } from '../components/TrainlyButton';
 import { SectionTitle } from '../components/SectionTitle';
 import { StatTile } from '../components/StatTile';
 import { AchievementsPreviewCard } from '../components/AchievementsPreviewCard';
+import { StreakBadge } from '../components/StreakBadge';
 import { EmptyState } from '../components/EmptyState';
-import { FadeIn } from '../components/Motion';
+import { FadeIn, PressableScale } from '../components/Motion';
 import { Text } from '../components/Typography';
 import { activityStats } from '../lib/stats';
 import { formatClock, formatKm } from '../lib/geo';
 import { effectiveTier } from '../lib/rank';
+import { warning } from '../lib/haptics';
 import { RootStackParamList } from '../navigation/types';
 
 type UserProfileRouteProp = RouteProp<RootStackParamList, 'UserProfile'>;
+
+// Mesmo tamanho do Perfil próprio (ProfileScreen) — precisa bater com o
+// `size` passado ao Avatar pra `avatarFrameSize` ancorar certo o streak.
+const AVATAR_SIZE = 88;
+const AVATAR_FRAME_SIZE = avatarFrameSize(AVATAR_SIZE);
 
 export function UserProfileScreen() {
   const { colors } = useTheme();
@@ -37,12 +45,15 @@ export function UserProfileScreen() {
     followsMe,
     followerCount,
     followingCount,
+    isBlocked,
     loading,
     error,
     busy,
     reload,
     toggleFollow,
+    toggleBlock,
   } = useUserProfile(params.userId, me?.id);
+  const { streak } = useStreak(params.userId);
 
   // Título do header: usa o nome que já veio na navegação enquanto carrega,
   // pra a tela não abrir com o cabeçalho vazio e "pular" depois.
@@ -87,6 +98,18 @@ export function UserProfileScreen() {
   // Rótulo no estilo Instagram: quem já te segue vira "Seguir de volta".
   const followLabel = isFollowing ? 'Seguindo' : followsMe ? 'Seguir de volta' : 'Seguir';
 
+  const handleBlockPress = () => {
+    warning();
+    Alert.alert(
+      'Trainly',
+      `Bloquear ${firstName}? Vocês deixam de se seguir e não vão mais poder comentar ou curtir um do outro.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Bloquear', style: 'destructive', onPress: toggleBlock },
+      ],
+    );
+  };
+
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
@@ -94,7 +117,12 @@ export function UserProfileScreen() {
       refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.primary} />}
     >
       <FadeIn style={styles.header}>
-        <Avatar name={profile.name} size={88} uri={profile.avatar_url} frameTier={frameTier.name} zoomable />
+        <View style={{ width: AVATAR_FRAME_SIZE, height: AVATAR_FRAME_SIZE }}>
+          <Avatar name={profile.name} size={AVATAR_SIZE} uri={profile.avatar_url} frameTier={frameTier.name} zoomable />
+          <View style={styles.streakAnchor}>
+            <StreakBadge streak={streak} userId={profile.id} ownerFirstName={isMe ? undefined : firstName} size="sm" />
+          </View>
+        </View>
         <Text style={[styles.name, { color: colors.textPrimary }]}>{profile.name}</Text>
 
         {followsMe && !isMe ? (
@@ -124,12 +152,21 @@ export function UserProfileScreen() {
 
       {!isMe && (
         <FadeIn delay={100} style={{ marginTop: 16 }}>
-          <TrainlyButton
-            title={followLabel}
-            variant={isFollowing ? 'secondary' : 'primary'}
-            onPress={toggleFollow}
-            loading={busy}
-          />
+          {isBlocked ? (
+            <TrainlyButton title="Desbloquear" variant="secondary" onPress={toggleBlock} loading={busy} />
+          ) : (
+            <>
+              <TrainlyButton
+                title={followLabel}
+                variant={isFollowing ? 'secondary' : 'primary'}
+                onPress={toggleFollow}
+                loading={busy}
+              />
+              <PressableScale onPress={handleBlockPress} style={styles.blockLink}>
+                <Text style={[styles.blockLinkText, { color: colors.danger }]}>Bloquear usuário</Text>
+              </PressableScale>
+            </>
+          )}
         </FadeIn>
       )}
 
@@ -200,6 +237,9 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   content: { padding: 20, paddingBottom: 40 },
   header: { alignItems: 'center', marginBottom: 20 },
+  // Grudado fora da moldura (não por cima do anel) — mais pra direita ainda
+  // do que a primeira tentativa, pra sair bem clara da borda.
+  streakAnchor: { position: 'absolute', right: -22, bottom: -2 },
   name: { fontSize: 20, fontWeight: '900', marginTop: 12 },
   followsYouChip: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 3, marginTop: 8 },
   followsYouText: { fontSize: 10.5, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
@@ -213,4 +253,6 @@ const styles = StyleSheet.create({
   divider: { width: 1, alignSelf: 'stretch', marginVertical: 2 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   empty: { fontSize: 13, fontWeight: '600' },
+  blockLink: { alignSelf: 'center', marginTop: 12, padding: 4 },
+  blockLinkText: { fontSize: 12.5, fontWeight: '700' },
 });

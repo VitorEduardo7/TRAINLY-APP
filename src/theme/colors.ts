@@ -48,6 +48,7 @@ export const SCREEN_WASH = {
   explore: ['#2f7dfd', '#1f5ee8'],
   history: ['#2f7dfd', '#1f5ee8'],
   profile: ['#2f7dfd', '#1f5ee8'],
+  clanWar: ['#2f7dfd', '#1f5ee8'],
 } as const satisfies Record<string, readonly [string, string]>;
 
 export type ScreenWashKey = keyof typeof SCREEN_WASH;

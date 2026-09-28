@@ -9,11 +9,13 @@ import { useTheme } from '../theme/ThemeContext';
 import { withAlpha } from '../theme/colors';
 import { useAuth } from '../hooks/useAuth';
 import { useActivities, weeklyVolume } from '../hooks/useActivities';
+import { useQuests } from '../hooks/useQuests';
 import { Card } from '../components/Card';
 import { Avatar } from '../components/Avatar';
 import { RankWidget } from '../components/RankWidget';
 import { TrainlyButton } from '../components/TrainlyButton';
 import { RegisterActivityModal } from '../components/RegisterActivityModal';
+import { QuestsCard } from '../components/QuestsCard';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SectionTitle } from '../components/SectionTitle';
 import { ProgressBar } from '../components/ProgressBar';
@@ -53,13 +55,17 @@ export function DashboardScreen() {
   const { colors } = useTheme();
   const { profile, refreshProfile } = useAuth();
   const { activities, loading, error, createActivity, reload } = useActivities(profile?.id);
+  const { daily, weekly, completedCount, total: questTotal, loading: questsLoading, reload: reloadQuests } = useQuests(
+    profile?.id,
+  );
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [modalVisible, setModalVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       reload();
-    }, [reload]),
+      reloadQuests();
+    }, [reload, reloadQuests]),
   );
 
   // Primeira carga: ainda não há nada pra mostrar — usa esqueleto em vez de
@@ -132,6 +138,10 @@ export function DashboardScreen() {
               onPress={() => setModalVisible(true)}
             />
           </View>
+        </FadeIn>
+
+        <FadeIn delay={100}>
+          <QuestsCard daily={daily} weekly={weekly} completedCount={completedCount} total={questTotal} loading={questsLoading} />
         </FadeIn>
 
         <FadeIn delay={130}>
@@ -249,7 +259,7 @@ export function DashboardScreen() {
           onClose={() => setModalVisible(false)}
           onSave={async (input) => {
             const xp = await createActivity(input);
-            await refreshProfile();
+            await Promise.all([refreshProfile(), reloadQuests()]);
             return xp;
           }}
         />

@@ -14,6 +14,8 @@ import { UserProfileScreen } from '../screens/UserProfileScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { AchievementsScreen } from '../screens/AchievementsScreen';
 import { CustomizationScreen } from '../screens/CustomizationScreen';
+import { ClanWarScreen } from '../screens/ClanWarScreen';
+import { StreakScreen } from '../screens/StreakScreen';
 import { MainTabs } from './MainTabs';
 import { RootStackParamList } from './types';
 
@@ -91,6 +93,16 @@ export function RootNavigator() {
                 name="Customization"
                 component={CustomizationScreen}
                 options={{ ...detailHeader, title: 'Personalização' }}
+              />
+              <Stack.Screen
+                name="ClanWar"
+                component={ClanWarScreen}
+                options={{ ...detailHeader, title: 'Guerra de Clã' }}
+              />
+              <Stack.Screen
+                name="Streak"
+                component={StreakScreen}
+                options={{ ...detailHeader, title: 'Sequência' }}
               />
             </>
           ) : (

@@ -55,6 +55,9 @@ export interface ClubMember {
   user_id: string;
   role: ClubRole;
   joined_at: string;
+  /** Silenciado pelo admin — não some do clube, mas fica de fora dos
+   *  rankings (desafios e Guerra de Clã) enquanto durar. */
+  silenced: boolean;
   profile?: Pick<Profile, 'id' | 'name' | 'avatar_url'>;
 }
 
@@ -151,4 +154,47 @@ export interface AchievementDefinition {
   xp_reward: number;
   params: Record<string, number>;
   sort_order: number;
+}
+
+// --- Desafios (diários/semanais) ---------------------------------------
+
+export type QuestPeriod = 'daily' | 'weekly';
+export type QuestGoalType = 'distance_km' | 'activity_count' | 'duration_min';
+
+/** Uma linha de `get_current_quests` — já junta o catálogo com o progresso da pessoa. */
+export interface CurrentQuest {
+  user_quest_id: string;
+  quest_id: string;
+  title: string;
+  description: string;
+  icon: string;
+  period: QuestPeriod;
+  goal_type: QuestGoalType;
+  goal_value: number;
+  xp_reward: number;
+  progress: number;
+  completed: boolean;
+  completed_at: string | null;
+}
+
+// --- Guerra de Clã --------------------------------------------------------
+
+/** Uma linha de `get_clan_war_leaderboard` — um clube e o XP (com teto
+ *  diário por atleta) que ele somou na guerra do fim de semana atual. */
+export interface ClanWarClub {
+  club_id: string;
+  club_name: string;
+  war_xp: number;
+  member_count: number;
+}
+
+/** Uma linha de `get_clan_war_members` — quanto XP um membro específico
+ *  rendeu pro clube na guerra atual. */
+export interface ClanWarMember {
+  user_id: string;
+  name: string;
+  avatar_url: string | null;
+  war_xp: number;
+  /** Silenciado pelo admin — `war_xp` já vem zerado pelo banco quando true. */
+  silenced: boolean;
 }

@@ -11,6 +11,9 @@ export interface UserProfileData {
   followsMe: boolean;
   followerCount: number;
   followingCount: number;
+  /** Eu bloqueei essa pessoa (bloqueio é sempre visto só de quem bloqueou —
+   *  não dá pra saber se ELA me bloqueou, RLS de `user_blocks` não deixa). */
+  isBlocked: boolean;
 }
 
 const EMPTY: UserProfileData = {
@@ -20,6 +23,7 @@ const EMPTY: UserProfileData = {
   followsMe: false,
   followerCount: 0,
   followingCount: 0,
+  isBlocked: false,
 };
 
 /**
@@ -45,13 +49,16 @@ export function useUserProfile(targetId: string | undefined, currentUserId: stri
     const myRequest = ++requestId.current;
     setLoading(true);
 
-    const [profileRes, activitiesRes, followersRes, followingRes] = await Promise.all([
+    const [profileRes, activitiesRes, followersRes, followingRes, blockRes] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', targetId).single(),
       supabase.from('activities').select('*').eq('user_id', targetId).order('date', { ascending: false }),
       // quem segue o alvo (pra contagem + saber se ele me segue)
       supabase.from('following').select('follower_id').eq('followed_id', targetId),
       // quem o alvo segue (pra contagem + saber se eu sou seguido por ele)
       supabase.from('following').select('followed_id').eq('follower_id', targetId),
+      currentUserId
+        ? supabase.from('user_blocks').select('blocked_id').eq('blocker_id', currentUserId).eq('blocked_id', targetId).maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
 
     // Chegou atrasada: já tem requisição mais nova em andamento (ou um
@@ -75,6 +82,7 @@ export function useUserProfile(targetId: string | undefined, currentUserId: stri
       followsMe: !!currentUserId && followedIds.includes(currentUserId),
       followerCount: followerIds.length,
       followingCount: followedIds.length,
+      isBlocked: !!(blockRes as any)?.data,
     });
     setLoading(false);
   }, [targetId, currentUserId]);
@@ -110,5 +118,25 @@ export function useUserProfile(targetId: string | undefined, currentUserId: stri
     setBusy(false);
   }, [targetId, currentUserId, busy, data.isFollowing, load]);
 
-  return { ...data, loading, error, busy, reload: load, toggleFollow };
+  // Bloquear/desbloquear. Bloquear já desfaz o "seguir" nos dois sentidos
+  // sozinho (gatilho `handle_new_block` no banco) — por isso recarrega tudo
+  // em vez de só marcar `isBlocked` otimista: o follow/seguidor também mudou.
+  const toggleBlock = useCallback(async () => {
+    if (!targetId || !currentUserId || busy) return;
+    setBusy(true);
+    try {
+      if (data.isBlocked) {
+        const { error: err } = await supabase.from('user_blocks').delete().eq('blocker_id', currentUserId).eq('blocked_id', targetId);
+        if (err) throw err;
+      } else {
+        const { error: err } = await supabase.from('user_blocks').insert({ blocker_id: currentUserId, blocked_id: targetId });
+        if (err && (err as any).code !== '23505') throw err;
+      }
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }, [targetId, currentUserId, busy, data.isBlocked, load]);
+
+  return { ...data, loading, error, busy, reload: load, toggleFollow, toggleBlock };
 }

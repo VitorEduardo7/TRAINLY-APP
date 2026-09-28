@@ -12,6 +12,11 @@ export type RootStackParamList = {
   Achievements: { userId: string; name?: string };
   /** Escolher moldura de avatar e cor do mapa — sempre a própria pessoa. */
   Customization: undefined;
+  /** Ranking geral da Guerra de Clã (todos os clubes, fim de semana atual). */
+  ClanWar: undefined;
+  /** Detalhe da sequência semanal — calendário seg-dom + atividades da
+   *  semana. Da própria pessoa ou de outra (`name` só ajusta o título). */
+  Streak: { userId: string; name?: string };
 };
 
 export type MainTabParamList = {

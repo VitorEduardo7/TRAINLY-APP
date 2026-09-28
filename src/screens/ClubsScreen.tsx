@@ -18,6 +18,8 @@ import { FadeIn, PressableScale } from '../components/Motion';
 import { SkeletonCard } from '../components/Skeleton';
 import { EmptyState } from '../components/EmptyState';
 import { Text, TextInput } from '../components/Typography';
+import { tapLight } from '../lib/haptics';
+import { isWarDay } from '../lib/clanWar';
 import { Club } from '../types/models';
 import { RootStackParamList } from '../navigation/types';
 
@@ -68,6 +70,31 @@ export function ClubsScreen() {
           title="Clubes"
           right={<TrainlyButton size="sm" title="Criar" icon="add" onPress={() => setModalVisible(true)} />}
         />
+
+        <FadeIn>
+          <PressableScale
+            scaleTo={0.98}
+            onPress={() => {
+              tapLight();
+              navigation.navigate('ClanWar');
+            }}
+            style={{ marginBottom: 14 }}
+          >
+            <Card style={styles.warBanner}>
+              <View style={[styles.warIcon, { backgroundColor: withAlpha(SCREEN_WASH.clanWar[0], 0.16) }]}>
+                <Ionicons name="flag" size={18} color={SCREEN_WASH.clanWar[0]} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.warTitle, { color: colors.textPrimary }]}>Guerra de Clã</Text>
+                <Text style={[styles.warHint, { color: colors.textMuted }]}>
+                  {isWarDay() ? 'Rolando agora — veja o ranking' : 'Evento de fim de semana entre clubes'}
+                </Text>
+              </View>
+              {isWarDay() && <View style={[styles.warLiveDot, { backgroundColor: colors.danger }]} />}
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            </Card>
+          </PressableScale>
+        </FadeIn>
 
         <FadeIn>
           <Card accent={SCREEN_WASH.clubs} style={styles.joinCard}>
@@ -184,6 +211,11 @@ function ClubRow({ club, onPress }: { club: Club; onPress: () => void }) {
 
 const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 130 },
+  warBanner: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  warIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  warTitle: { fontSize: 14.5, fontWeight: '800' },
+  warHint: { fontSize: 11.5, fontWeight: '600', marginTop: 2 },
+  warLiveDot: { width: 8, height: 8, borderRadius: 4 },
   joinCard: { overflow: 'hidden' },
   joinHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
   joinIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
