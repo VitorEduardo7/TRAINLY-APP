@@ -51,7 +51,7 @@ export function StatTile({ icon, label, value, tint, size = 'md', gradient, load
         <LinearGradient colors={gradient} start={{ x: 0.1, y: 0 }} end={{ x: 0.95, y: 1 }} style={StyleSheet.absoluteFill} />
       )}
       <View style={[styles.icon, size === 'lg' && styles.iconLg, { backgroundColor: iconBg }]}>
-        <Ionicons name={icon} size={size === 'lg' ? 18 : 15} color={iconColor} />
+        <Ionicons name={icon} size={size === 'lg' ? 17 : 14} color={iconColor} />
       </View>
       {loading ? (
         <Skeleton width={size === 'lg' ? '55%' : '70%'} height={size === 'lg' ? 24 : 16} style={{ marginTop: 2 }} />
@@ -73,11 +73,11 @@ export function StatTile({ icon, label, value, tint, size = 'md', gradient, load
 }
 
 const styles = StyleSheet.create({
-  tile: { borderRadius: 16, padding: 12, flexGrow: 1, flexBasis: '46%', overflow: 'hidden' },
-  tileLg: { flexBasis: '100%', padding: 18, borderRadius: 22 },
-  icon: { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  iconLg: { width: 36, height: 36, borderRadius: 12, marginBottom: 14 },
-  value: { fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
-  valueLg: { fontSize: 30, fontWeight: '800', letterSpacing: -0.8 },
-  label: { fontSize: 10.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 3 },
+  tile: { borderRadius: 14, padding: 14, flexGrow: 1, flexBasis: '46%', overflow: 'hidden' },
+  tileLg: { flexBasis: '100%', padding: 18, borderRadius: 16 },
+  icon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  iconLg: { width: 34, height: 34, borderRadius: 17, marginBottom: 12 },
+  value: { fontSize: 26, fontWeight: '900', fontStyle: 'italic', letterSpacing: 0 },
+  valueLg: { fontSize: 46, fontWeight: '900', fontStyle: 'italic', letterSpacing: -0.5, lineHeight: 50 },
+  label: { fontSize: 12, fontWeight: '500', marginTop: 1 },
 });

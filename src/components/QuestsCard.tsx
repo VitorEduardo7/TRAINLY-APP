@@ -2,10 +2,9 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
-import { withAlpha } from '../theme/colors';
 import { Card } from './Card';
 import { SectionTitle } from './SectionTitle';
-import { ProgressBar } from './ProgressBar';
+import { SegmentedBar } from './SegmentedBar';
 import { Text } from './Typography';
 import type { CurrentQuest } from '../types/models';
 
@@ -21,48 +20,35 @@ function formatAmount(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ',');
 }
 
-function QuestRow({ quest }: { quest: CurrentQuest }) {
+function QuestRow({ quest, first }: { quest: CurrentQuest; first: boolean }) {
   const { colors } = useTheme();
   const pct = quest.goal_value > 0 ? Math.min(1, quest.progress / quest.goal_value) : 0;
+  const tint = quest.completed ? colors.success : colors.primary;
 
   return (
-    <View style={styles.row}>
-      <View
-        style={[
-          styles.iconCircle,
-          { backgroundColor: quest.completed ? withAlpha(colors.success, 0.16) : colors.surface },
-        ]}
-      >
+    <View style={[styles.row, !first && { borderTopWidth: 1, borderTopColor: colors.border }]}>
+      <View style={[styles.icon, { borderColor: quest.completed ? colors.success : colors.border }]}>
         <Ionicons
           name={(quest.completed ? 'checkmark' : quest.icon) as IconName}
           size={16}
-          color={quest.completed ? colors.success : colors.primary}
+          color={quest.completed ? colors.success : colors.textPrimary}
         />
       </View>
       <View style={{ flex: 1 }}>
-        <Text
-          style={[
-            styles.title,
-            { color: colors.textPrimary },
-            quest.completed && { color: colors.textMuted, textDecorationLine: 'line-through' },
-          ]}
-          numberOfLines={1}
-        >
-          {quest.title}
+        <View style={styles.titleRow}>
+          <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1}>
+            {quest.title}
+          </Text>
+          <Text style={[styles.reward, { color: quest.completed ? colors.textMuted : colors.goldText }]} numberOfLines={1}>
+            +{quest.xp_reward} XP
+          </Text>
+        </View>
+        <SegmentedBar progress={pct} segments={10} height={6} color={tint} style={{ marginTop: 8 }} />
+        <Text style={[styles.caption, { color: quest.completed ? colors.success : colors.textMuted }]}>
+          {quest.completed
+            ? 'Concluída'
+            : `${formatAmount(quest.progress)} de ${formatAmount(quest.goal_value)} ${unitLabel(quest)}`}
         </Text>
-        {quest.completed ? (
-          <Text style={[styles.caption, { color: colors.success }]}>Concluído</Text>
-        ) : (
-          <>
-            <ProgressBar progress={pct} height={5} style={{ marginTop: 6, marginBottom: 4 }} />
-            <Text style={[styles.caption, { color: colors.textMuted }]}>
-              {formatAmount(quest.progress)}/{formatAmount(quest.goal_value)} {unitLabel(quest)}
-            </Text>
-          </>
-        )}
-      </View>
-      <View style={[styles.xpPill, { backgroundColor: colors.primarySoft }]}>
-        <Text style={[styles.xpText, { color: colors.primary }]}>+{quest.xp_reward}</Text>
       </View>
     </View>
   );
@@ -77,14 +63,14 @@ interface Props {
 }
 
 /**
- * Desafios de hoje + da semana, no Dashboard. Some sozinho se o banco ainda
- * não rodou `quests_schema.sql` (sem catálogo, não tem o que mostrar) — em
- * vez de um card vazio ou quebrado.
+ * Desafios de hoje + da semana, no Início. Some sozinho se o banco ainda não
+ * rodou `quests_schema.sql` (sem catálogo, não tem o que mostrar) — em vez
+ * de uma seção vazia ou quebrada.
  *
- * Recebe os dados prontos (em vez de buscar sozinho) porque o Dashboard
- * precisa recarregar os desafios junto com o resto assim que uma atividade
- * nova é registrada — a barra de progresso tem que mexer na hora, não só na
- * próxima vez que a tela abrir.
+ * Recebe os dados prontos (em vez de buscar sozinho) porque o Início precisa
+ * recarregar os desafios junto com o resto assim que uma atividade nova é
+ * registrada — a barra tem que mexer na hora, não só na próxima vez que a
+ * tela abrir.
  */
 export function QuestsCard({ daily, weekly, completedCount, total, loading }: Props) {
   const { colors } = useTheme();
@@ -92,41 +78,45 @@ export function QuestsCard({ daily, weekly, completedCount, total, loading }: Pr
   if (!loading && total === 0) return null;
 
   return (
-    <Card style={{ marginTop: 14 }}>
+    <View style={{ marginTop: 30 }}>
       <SectionTitle
         title="Desafios"
         right={
           !loading ? (
             <Text style={[styles.count, { color: colors.textMuted }]}>
-              {completedCount}/{total}
+              {completedCount} de {total} concluídos
             </Text>
           ) : null
         }
       />
-      {daily.map((q) => (
-        <QuestRow key={q.user_quest_id} quest={q} />
-      ))}
-      {weekly.length > 0 && (
-        <>
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <Text style={[styles.weeklyLabel, { color: colors.textMuted }]}>Esta semana</Text>
-          {weekly.map((q) => (
-            <QuestRow key={q.user_quest_id} quest={q} />
-          ))}
-        </>
-      )}
-    </Card>
+      <Card style={styles.card}>
+        {daily.length > 0 && <Text style={[styles.group, { color: colors.textMuted }]}>Hoje</Text>}
+        {daily.map((q, i) => (
+          <QuestRow key={q.user_quest_id} quest={q} first={i === 0} />
+        ))}
+        {weekly.length > 0 && (
+          <>
+            <Text style={[styles.group, { color: colors.textMuted, marginTop: daily.length ? 14 : 0 }]}>
+              Esta semana
+            </Text>
+            {weekly.map((q, i) => (
+              <QuestRow key={q.user_quest_id} quest={q} first={i === 0} />
+            ))}
+          </>
+        )}
+      </Card>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  count: { fontSize: 12, fontWeight: '700' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
-  iconCircle: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 13.5, fontWeight: '700' },
-  caption: { fontSize: 11, fontWeight: '600', marginTop: 2 },
-  xpPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  xpText: { fontSize: 11, fontWeight: '800' },
-  divider: { height: 1, marginVertical: 6 },
-  weeklyLabel: { fontSize: 10.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2 },
+  card: { paddingVertical: 14 },
+  count: { fontSize: 13, fontWeight: '500' },
+  group: { fontSize: 12.5, fontWeight: '600', marginBottom: 2 },
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 13, paddingVertical: 12 },
+  icon: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  titleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
+  title: { fontSize: 15, fontWeight: '600', flexShrink: 1 },
+  reward: { fontSize: 13, fontWeight: '700', flexShrink: 0 },
+  caption: { fontSize: 12, fontWeight: '500', marginTop: 6 },
 });

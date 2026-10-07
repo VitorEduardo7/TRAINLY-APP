@@ -97,13 +97,7 @@ export function ClubsScreen() {
         </FadeIn>
 
         <FadeIn>
-          <Card accent={SCREEN_WASH.clubs} style={styles.joinCard}>
-            <LinearGradient
-              colors={[withAlpha(SCREEN_WASH.clubs[0], 0.14), 'transparent']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
+          <Card style={styles.joinCard}>
             <View style={styles.joinHeader}>
               <View style={[styles.joinIcon, { backgroundColor: withAlpha(SCREEN_WASH.clubs[0], 0.16) }]}>
                 <Ionicons name="key" size={18} color={SCREEN_WASH.clubs[0]} />
@@ -115,7 +109,7 @@ export function ClubsScreen() {
             </View>
             <View style={styles.joinRow}>
               <TextInput
-                placeholder="CÓDIGO"
+                placeholder="Código"
                 placeholderTextColor={colors.textMuted}
                 autoCapitalize="characters"
                 autoCorrect={false}
@@ -126,8 +120,8 @@ export function ClubsScreen() {
                 style={[
                   styles.codeInput,
                   {
-                    backgroundColor: colors.background,
-                    borderColor: codeFocused ? SCREEN_WASH.clubs[0] : colors.border,
+                    backgroundColor: colors.surface,
+                    borderColor: codeFocused ? colors.primary : colors.border,
                     color: colors.textPrimary,
                   },
                 ]}
@@ -224,14 +218,15 @@ const styles = StyleSheet.create({
   joinRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   codeInput: {
     flex: 1,
-    borderWidth: 1.5,
-    borderRadius: 13,
+    minWidth: 0,
+    borderWidth: 1,
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: 1.5,
-    minHeight: 52,
+    minHeight: 56,
   },
   count: { fontSize: 12, fontWeight: '700' },
   clubCard: { flexDirection: 'row', alignItems: 'center', gap: 14 },

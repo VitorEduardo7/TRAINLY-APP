@@ -8,12 +8,13 @@ import {
   TextStyle,
   StyleProp,
 } from 'react-native';
-import { interFamily, useFontsReady } from '../theme/fonts';
+import { fontFamilyFor, useFontsReady } from '../theme/fonts';
 import { FONT_SCALE_MULTIPLIER, useTheme } from '../theme/ThemeContext';
 
 /**
  * `Text` e `TextInput` do app: iguais aos do React Native, só que aplicam a
- * fonte Inter no peso certo (ver `interFamily`) e o tamanho de texto das
+ * fonte certa pro peso pedido (Inter no texto, Barlow Condensed nos títulos e
+ * números — ver `fontFamilyFor`) e o tamanho de texto das
  * opções de acessibilidade (Configurações → Acessibilidade). Todas as telas
  * importam daqui em vez de 'react-native', então tipografia e escala de
  * texto ficam consistentes sem precisar lembrar disso em cada estilo.
@@ -30,9 +31,20 @@ function fontOverride(style: StyleProp<TextStyle>, nested: boolean, ready: boole
   // Texto aninhado sem peso próprio: deixa herdar do pai (ex: o "ly" azul de
   // "Trainly" continua no mesmo peso da palavra).
   if (nested && flat.fontWeight == null) return null;
-  // `fontWeight: 'normal'` junto: o arquivo escolhido já É o peso certo; sem
-  // isso o Android aplicaria um negrito sintético por cima.
-  return { fontFamily: interFamily(flat.fontWeight), fontWeight: 'normal' };
+  // `fontWeight: 'normal'` (e `fontStyle: 'normal'` no itálico) junto: o
+  // arquivo escolhido já É o peso/estilo certo; sem isso o Android aplicaria
+  // um negrito/itálico sintético por cima.
+  let family = fontFamilyFor(flat.fontWeight, flat.fontStyle);
+  // A Barlow Condensed é letra de DISPLAY: estreita, lê mal em tamanho
+  // pequeno. Rótulos pesados abaixo de 16px (ou sem tamanho, como trechos
+  // destacados dentro de uma frase) ficam na Inter Bold — só título, número
+  // grande e botão viram Barlow.
+  if (family.startsWith('BarlowCondensed') && (typeof flat.fontSize !== 'number' || flat.fontSize < 16)) {
+    family = 'Inter_700Bold';
+  }
+  return family.endsWith('_Italic')
+    ? { fontFamily: family, fontWeight: 'normal', fontStyle: 'normal' }
+    : { fontFamily: family, fontWeight: 'normal' };
 }
 
 /** Multiplica o `fontSize` do estilo pela escala escolhida em Acessibilidade — só quando o estilo já define um tamanho explícito, pra não mexer em texto que usa o padrão do sistema. */

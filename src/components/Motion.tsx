@@ -142,16 +142,16 @@ interface PressableScaleProps extends Omit<PressableProps, 'style' | 'children'>
 }
 
 /**
- * `Pressable` que "afunda" um pouco ao tocar e volta com mola — dá a sensação
- * de botão físico. O estilo vai direto no Pressable, então `flex: 1` e afins
+ * `Pressable` que encolhe de leve ao tocar e volta — resposta firme, sem
+ * "quique" (a mola elástica de antes deixava o app com cara de brinquedo). O estilo vai direto no Pressable, então `flex: 1` e afins
  * funcionam igual antes.
  */
-export function PressableScale({ children, style, scaleTo = 0.97, onPressIn, onPressOut, disabled, ...rest }: PressableScaleProps) {
+export function PressableScale({ children, style, scaleTo = 0.98, onPressIn, onPressOut, disabled, ...rest }: PressableScaleProps) {
   const scale = useRef(new Animated.Value(1)).current;
 
   const springTo = (toValue: number) => {
     if (prefersReducedMotion()) return;
-    Animated.spring(scale, { toValue, useNativeDriver: true, speed: 40, bounciness: 7 }).start();
+    Animated.spring(scale, { toValue, useNativeDriver: true, speed: 50, bounciness: 0 }).start();
   };
 
   return (

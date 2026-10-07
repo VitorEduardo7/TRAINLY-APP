@@ -158,7 +158,7 @@ export function SettingsScreen() {
           {pendingEmail ? (
             <View>
               <Text style={[styles.pendingNotice, { color: colors.textMuted }]}>
-                Troca pendente para <Text style={{ fontWeight: '800', color: colors.textPrimary }}>{pendingEmail}</Text>.
+                Troca pendente para <Text style={{ fontWeight: '700', color: colors.textPrimary }}>{pendingEmail}</Text>.
                 Digite o código de 6 dígitos que chegou nesse e-mail.
               </Text>
               <TrainlyInput
@@ -238,9 +238,10 @@ export function SettingsScreen() {
 
           <Text style={[styles.fontSizeLabel, { color: colors.textMuted, marginTop: 0 }]}>Cores para daltonismo</Text>
           <Text style={[styles.colorBlindHint, { color: colors.textMuted }]}>
-            Ajusta as cores de sucesso/erro/alerta, das modalidades (corrida, pedal, natação, caminhada) e do streak
-            (fogo/gelo) em todo o app. Protanopia e deuteranopia (confusão vermelho-verde) usam paletas bem
-            parecidas; tritanopia (confusão azul-amarelo, mais rara) usa uma paleta diferente.
+            Ajusta as cores de sucesso/erro/alerta, das modalidades (corrida, pedal, natação, caminhada), do streak
+            (fogo/gelo) e das patentes (moldura do avatar, cor do mapa) em todo o app. Protanopia e deuteranopia
+            (confusão vermelho-verde) usam paletas bem parecidas; tritanopia (confusão azul-amarelo, mais rara) usa
+            uma paleta diferente.
           </Text>
           <View style={styles.fontScaleRow}>
             {COLOR_BLIND_OPTIONS.map((option) => {
@@ -260,11 +261,11 @@ export function SettingsScreen() {
                     styles.fontScaleChip,
                     {
                       borderColor: active ? colors.primary : colors.border,
-                      backgroundColor: active ? colors.primarySoft : 'transparent',
+                      backgroundColor: active ? colors.primary : 'transparent',
                     },
                   ]}
                 >
-                  <Text style={[styles.fontScaleLabel, { color: active ? colors.primary : colors.textMuted }]}>
+                  <Text style={[styles.fontScaleLabel, { color: active ? '#ffffff' : colors.textMuted }]}>
                     {label}
                   </Text>
                 </PressableScale>
@@ -309,11 +310,11 @@ export function SettingsScreen() {
                     styles.fontScaleChip,
                     {
                       borderColor: active ? colors.primary : colors.border,
-                      backgroundColor: active ? colors.primarySoft : 'transparent',
+                      backgroundColor: active ? colors.primary : 'transparent',
                     },
                   ]}
                 >
-                  <Text style={[styles.fontScaleLabel, { color: active ? colors.primary : colors.textMuted }]}>
+                  <Text style={[styles.fontScaleLabel, { color: active ? '#ffffff' : colors.textMuted }]}>
                     {FONT_SCALE_LABELS[option]}
                   </Text>
                 </PressableScale>
@@ -374,6 +375,6 @@ const styles = StyleSheet.create({
   fontSizeLabel: { fontSize: 14.5, fontWeight: '700', marginTop: 4, marginBottom: 10 },
   colorBlindHint: { fontSize: 12, fontWeight: '500', marginTop: -6, marginBottom: 10, lineHeight: 16 },
   fontScaleRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  fontScaleChip: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
-  fontScaleLabel: { fontSize: 13, fontWeight: '700' },
+  fontScaleChip: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
+  fontScaleLabel: { fontSize: 13.5, fontWeight: '600' },
 });

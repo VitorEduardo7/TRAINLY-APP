@@ -11,7 +11,8 @@ const LOGO = require('../../assets/splash-icon.png');
 const GLOW = require('../../assets/brand/glow.png');
 const LOGO_WIDTH = 220;
 const LOGO_HEIGHT = Math.round((LOGO_WIDTH * 836) / 1016);
-const BRAND_BG = '#0a0b0f';
+// Mesmo fundo "noite violeta" do tema escuro Arena (e da splash nativa no app.json).
+const BRAND_BG = '#140f2a';
 /** Tempo mínimo na tela — o suficiente pra animação de entrada terminar. */
 const MIN_VISIBLE_MS = 1300;
 

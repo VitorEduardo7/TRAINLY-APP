@@ -44,7 +44,7 @@ export function RootNavigator() {
           regular: { fontFamily: 'Inter_400Regular', fontWeight: 'normal' as const },
           medium: { fontFamily: 'Inter_500Medium', fontWeight: 'normal' as const },
           bold: { fontFamily: 'Inter_700Bold', fontWeight: 'normal' as const },
-          heavy: { fontFamily: 'Inter_800ExtraBold', fontWeight: 'normal' as const },
+          heavy: { fontFamily: 'BarlowCondensed_800ExtraBold', fontWeight: 'normal' as const },
         }
       : baseTheme.fonts,
     colors: {
@@ -65,7 +65,11 @@ export function RootNavigator() {
     headerShadowVisible: false,
     headerStyle: { backgroundColor: colors.background },
     headerTintColor: colors.primary,
-    headerTitleStyle: { color: colors.textPrimary },
+    headerTitleStyle: {
+      color: colors.textPrimary,
+      fontSize: 21,
+      ...(fontsReady ? { fontFamily: 'BarlowCondensed_700Bold' } : { fontWeight: '800' as const }),
+    },
     headerBackTitle: 'Voltar',
   };
 

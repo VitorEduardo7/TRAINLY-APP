@@ -117,7 +117,7 @@ export function RegisterActivityModal({ visible, onClose, onSave }: Props) {
         <View style={[styles.sheet, { backgroundColor: colors.card, paddingBottom: 22 + insets.bottom }]}>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <View style={[styles.handle, { backgroundColor: colors.border }]} />
-            <Text style={[styles.title, { color: colors.textPrimary }]}>Registrar Atividade</Text>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>Registrar atividade</Text>
 
             <Text style={[styles.label, { color: colors.textMuted }]}>Tipo</Text>
             <ChipSelector options={TYPES} value={type} onChange={setType} style={styles.typeRow} />

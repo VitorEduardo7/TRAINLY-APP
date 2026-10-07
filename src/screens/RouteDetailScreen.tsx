@@ -43,7 +43,7 @@ export function RouteDetailScreen() {
  * tocar em "Apagar", por exemplo).
  */
 function RouteDetail({ route }: { route: TrainlyRoute }) {
-  const { colors } = useTheme();
+  const { colors, colorBlindMode } = useTheme();
   const { profile } = useAuth();
   const { deleteRoute } = useRoutes();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -65,7 +65,7 @@ function RouteDetail({ route }: { route: TrainlyRoute }) {
   // A cor do traçado é a personalização de quem CRIOU a rota, não de quem
   // está vendo — assim a rota fica com a mesma "cara" em qualquer tela (aqui
   // e na prévia do Explorar Rotas).
-  const mapTier = effectiveTier(route.creator_xp ?? 0, route.creator_map_tier);
+  const mapTier = effectiveTier(route.creator_xp ?? 0, route.creator_map_tier, colorBlindMode);
 
   const handleDelete = () => {
     warning();
@@ -106,7 +106,7 @@ function RouteDetail({ route }: { route: TrainlyRoute }) {
       <FadeIn style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Text style={[styles.name, { color: colors.textPrimary }]}>{route.name}</Text>
         <Text style={[styles.creator, { color: colors.textMuted }]}>
-          por {route.creator_name} · {route.type}
+          {route.type} de {route.creator_name}
         </Text>
 
         <View style={styles.statsRow}>

@@ -1,7 +1,6 @@
 import React from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
-import { withAlpha } from '../theme/colors';
 import { PressableScale } from './Motion';
 import { Text } from './Typography';
 import { selection } from '../lib/haptics';
@@ -14,8 +13,8 @@ interface Props<T extends string> {
 }
 
 /**
- * Seletor de "chips" em pílula (tipo de atividade, dificuldade da rota...),
- * a opção escolhida destacada na cor primária. Substitui 3 versões quase
+ * Seletor de "chips" (tipo de atividade, dificuldade da rota...): opções com
+ * contorno fino; a escolhida vira azul cheio. Substitui 3 versões quase
  * idênticas que existiam soltas (RunScreen, RegisterActivityModal,
  * PublishRouteModal — cada uma um <Text onPress> sem nenhum feedback ao
  * tocar). Aqui com PressableScale + vibração de seleção.
@@ -38,13 +37,12 @@ export function ChipSelector<T extends string>({ options, value, onChange, style
             accessibilityState={{ selected: active }}
             style={[
               styles.chip,
-              {
-                borderColor: active ? colors.primary : colors.border,
-                backgroundColor: active ? withAlpha(colors.primary, 0.13) : 'transparent',
-              },
+              active
+                ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                : { backgroundColor: 'transparent', borderColor: colors.border },
             ]}
           >
-            <Text style={[styles.label, { color: active ? colors.primary : colors.textMuted }]}>{option}</Text>
+            <Text style={[styles.label, { color: active ? '#ffffff' : colors.textMuted }]}>{option}</Text>
           </PressableScale>
         );
       })}
@@ -56,9 +54,9 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     borderWidth: 1,
-    borderRadius: 20,
+    borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
-  label: { fontSize: 13, fontWeight: '700' },
+  label: { fontSize: 13.5, fontWeight: '600' },
 });

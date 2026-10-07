@@ -2,10 +2,9 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useTheme } from '../theme/ThemeContext';
-import { useFontsReady } from '../theme/fonts';
+import { fontFamilyFor, useFontsReady } from '../theme/fonts';
 import { prefersReducedMotion } from '../components/Motion';
 import { PressableScale } from '../components/Motion';
 import { Text } from '../components/Typography';
@@ -50,10 +49,9 @@ const LABELS: Record<keyof MainTabParamList, string> = {
 };
 
 /**
- * Barra de abas flutuante, em pílula, suspensa sobre o conteúdo — no lugar
- * da barra reta grudada na borda (padrão de site/app antigo). A aba ativa
- * ganha uma bolha em degradê (verde-limão da identidade nova) em vez do
- * fundo translúcido azul de antes.
+ * Barra de abas flutuante, suspensa sobre o conteúdo. A aba ativa ganha uma
+ * marca azul inclinada em cima do ícone — como a faixa de uma raia de pista —
+ * em vez de um fundo colorido; ícone e nome acendem pro branco.
  */
 function TabButton({
   name,
@@ -73,7 +71,7 @@ function TabButton({
       active.setValue(focused ? 1 : 0);
       return;
     }
-    Animated.spring(active, { toValue: focused ? 1 : 0, useNativeDriver: true, speed: 22, bounciness: 8 }).start();
+    Animated.timing(active, { toValue: focused ? 1 : 0, duration: 180, useNativeDriver: true }).start();
   }, [focused, active]);
 
   return (
@@ -88,31 +86,24 @@ function TabButton({
       <View style={styles.iconWrap}>
         <Animated.View
           style={[
-            StyleSheet.absoluteFill,
-            styles.pill,
+            styles.mark,
             {
+              backgroundColor: colors.primary,
               opacity: active,
-              transform: [{ scale: active.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }],
+              transform: [{ skewX: '-24deg' }, { scaleX: active.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }],
             },
           ]}
-        >
-          <LinearGradient
-            colors={colors.accentGradient}
-            start={{ x: 0.1, y: 0 }}
-            end={{ x: 0.9, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
-        </Animated.View>
+        />
         <Ionicons
           name={focused ? ICONS_FILLED[name] : ICONS_OUTLINE[name]}
-          size={19}
-          color={focused ? '#ffffff' : colors.textMuted}
+          size={21}
+          color={focused ? colors.textPrimary : colors.textMuted}
         />
       </View>
       <Text
         style={[
           styles.label,
-          fontsReady && { fontFamily: 'Inter_700Bold', fontWeight: 'normal' },
+          fontsReady && { fontFamily: fontFamilyFor('600'), fontWeight: 'normal' },
           { color: focused ? colors.textPrimary : colors.textMuted },
         ]}
         numberOfLines={1}
@@ -184,17 +175,18 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
     width: '100%',
-    borderRadius: 26,
+    borderRadius: 22,
     borderWidth: 1,
-    paddingVertical: 8,
+    paddingTop: 6,
+    paddingBottom: 8,
     paddingHorizontal: 6,
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
     elevation: 10,
   },
-  tabBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4, gap: 3 },
-  iconWrap: { width: 42, height: 30, alignItems: 'center', justifyContent: 'center' },
-  pill: { borderRadius: 15 },
-  label: { fontSize: 10, fontWeight: '700', marginTop: 1 },
+  tabBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 2, gap: 3 },
+  iconWrap: { width: 46, height: 34, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 3 },
+  mark: { position: 'absolute', top: 0, width: 18, height: 3, borderRadius: 1 },
+  label: { fontSize: 10.5, fontWeight: '600', marginTop: 1 },
 });

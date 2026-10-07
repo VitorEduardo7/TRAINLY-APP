@@ -1,5 +1,5 @@
 // Réplica exata da lógica de patentes/XP do site (js/main.js)
-import { RANKS } from '../theme/colors';
+import { ColorBlindMode, RANKS, tierColor } from '../theme/colors';
 
 export interface RankInfo {
   level: number;
@@ -9,15 +9,16 @@ export interface RankInfo {
   rank: { name: string; min: number; color: string };
 }
 
-export function getRankForLevel(level: number) {
+/** `mode` (de `useTheme().colorBlindMode`) ajusta só a cor devolvida — nome/min continuam os mesmos. */
+export function getRankForLevel(level: number, mode?: ColorBlindMode): { name: string; min: number; color: string } {
   let current: (typeof RANKS)[number] = RANKS[0];
   for (const r of RANKS) {
     if (level >= r.min) current = r;
   }
-  return current;
+  return { name: current.name, min: current.min, color: tierColor(current.name, mode) };
 }
 
-export function levelInfo(totalXp: number): RankInfo {
+export function levelInfo(totalXp: number, mode?: ColorBlindMode): RankInfo {
   let level = 1;
   let xpToNext = 100;
   let remaining = totalXp;
@@ -31,7 +32,7 @@ export function levelInfo(totalXp: number): RankInfo {
     xpIntoLevel: remaining,
     xpToNext,
     progressPct: Math.max(4, Math.round((remaining / xpToNext) * 100)),
-    rank: getRankForLevel(level),
+    rank: getRankForLevel(level, mode),
   };
 }
 
@@ -109,7 +110,7 @@ export function emblemFor(rankName: string): string {
  * A trilha inteira de patentes com o estado de cada uma pra um dado XP:
  * as que o atleta já conquistou, a atual, e as que ainda pode evoluir.
  */
-export function rankTrail(totalXp: number): RankStep[] {
+export function rankTrail(totalXp: number, mode?: ColorBlindMode): RankStep[] {
   const { level } = levelInfo(totalXp);
   const current = getRankForLevel(level);
   return RANKS.map((r) => {
@@ -117,7 +118,7 @@ export function rankTrail(totalXp: number): RankStep[] {
     return {
       name: r.name,
       min: r.min,
-      color: r.color,
+      color: tierColor(r.name, mode),
       emblem: EMBLEMS[r.name] ?? 'medal',
       achieved,
       isCurrent: r.name === current.name,
@@ -128,8 +129,8 @@ export function rankTrail(totalXp: number): RankStep[] {
 }
 
 /** Próxima patente ainda não conquistada (null se já está no topo). */
-export function nextRankStep(totalXp: number): RankStep | null {
-  return rankTrail(totalXp).find((r) => !r.achieved) ?? null;
+export function nextRankStep(totalXp: number, mode?: ColorBlindMode): RankStep | null {
+  return rankTrail(totalXp, mode).find((r) => !r.achieved) ?? null;
 }
 
 // --- Personalização (moldura do avatar e cor do mapa) -----------------------
@@ -148,10 +149,10 @@ export function unlockedTierNames(totalXp: number): string[] {
  * no perfil (ex: nível "voltou" nunca acontece hoje, mas o código não confia
  * cegamente no que está no banco).
  */
-export function effectiveTier(totalXp: number, equippedTierName: string | null | undefined) {
+export function effectiveTier(totalXp: number, equippedTierName: string | null | undefined, mode?: ColorBlindMode) {
   const { level } = levelInfo(totalXp);
-  const current = getRankForLevel(level);
+  const current = getRankForLevel(level, mode);
   if (!equippedTierName) return current;
   const chosen = RANKS.find((r) => r.name === equippedTierName);
-  return chosen && level >= chosen.min ? chosen : current;
+  return chosen && level >= chosen.min ? { name: chosen.name, min: chosen.min, color: tierColor(chosen.name, mode) } : current;
 }

@@ -115,7 +115,7 @@ export function ClanWarScreen() {
                   {c.member_count} {c.member_count === 1 ? 'atleta pontuando' : 'atletas pontuando'}
                 </Text>
               </View>
-              <Text style={[styles.xp, { color: colors.primary }]}>{c.war_xp} XP</Text>
+              <Text style={[styles.xp, { color: colors.goldText }]}>{c.war_xp} XP</Text>
             </Card>
           </FadeIn>
         );
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
   heroTitle: { fontSize: 19, fontWeight: '800', letterSpacing: -0.3 },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
   statusDot: { width: 7, height: 7, borderRadius: 3.5 },
-  statusLabel: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
+  statusLabel: { fontSize: 13.5, fontWeight: '800' },
   windowLabel: { fontSize: 12.5, fontWeight: '700', marginTop: 14 },
   explainer: { fontSize: 12.5, fontWeight: '500', marginTop: 8, lineHeight: 18 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 },

@@ -5,7 +5,7 @@ import { useTheme } from '../theme/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { levelInfo } from '../lib/rank';
-import { RANKS } from '../theme/colors';
+import { RANKS, tierColor } from '../theme/colors';
 import { Avatar } from '../components/Avatar';
 import { Card } from '../components/Card';
 import { SectionTitle } from '../components/SectionTitle';
@@ -21,7 +21,7 @@ type Kind = 'frame' | 'map';
 // atual (ex: já é Diamante mas prefere usar a moldura Ouro). "Automático"
 // sempre acompanha a patente atual, mesmo quando ela sobe.
 export function CustomizationScreen() {
-  const { colors } = useTheme();
+  const { colors, colorBlindMode } = useTheme();
   const { profile, refreshProfile } = useAuth();
   const [busy, setBusy] = useState(false);
 
@@ -33,7 +33,7 @@ export function CustomizationScreen() {
     );
   }
 
-  const { level, rank: currentRank } = levelInfo(profile.xp);
+  const { level, rank: currentRank } = levelInfo(profile.xp, colorBlindMode);
 
   const equip = async (kind: Kind, tierName: string | null) => {
     setBusy(true);
@@ -108,7 +108,7 @@ export function CustomizationScreen() {
               disabled={busy}
               onPress={() => equip('map', r.name)}
             >
-              <View style={[styles.swatch, { backgroundColor: r.color }]} />
+              <View style={[styles.swatch, { backgroundColor: tierColor(r.name, colorBlindMode) }]} />
             </TierTile>
           ))}
         </View>

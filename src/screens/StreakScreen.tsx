@@ -17,6 +17,7 @@ import { FadeIn } from '../components/Motion';
 import { Text } from '../components/Typography';
 import { formatClock, formatKm } from '../lib/geo';
 import { RootStackParamList } from '../navigation/types';
+import { XpChip } from '../components/XpChip';
 
 type StreakRouteProp = RouteProp<RootStackParamList, 'Streak'>;
 
@@ -166,12 +167,10 @@ export function StreakScreen() {
                     {a.title || a.type}
                   </Text>
                   <Text style={[styles.activityMeta, { color: colors.textMuted }]} numberOfLines={1}>
-                    {shortDate(a.date)} · {formatKm(Number(a.distance_km))} km · {formatClock(a.duration_sec)}
+                    {shortDate(a.date)}, {formatKm(Number(a.distance_km))} km em {formatClock(a.duration_sec)}
                   </Text>
                 </View>
-                <View style={[styles.xpPill, { backgroundColor: colors.primarySoft }]}>
-                  <Text style={[styles.xpPillText, { color: colors.primary }]}>+{a.xp_earned} XP</Text>
-                </View>
+                <XpChip xp={a.xp_earned} />
               </View>
             ))
           )}
@@ -234,8 +233,8 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 40 },
   heroCard: { alignItems: 'center', paddingVertical: 28 },
   heroIcon: { width: 64, height: 64, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  heroCount: { fontSize: 36, fontWeight: '900', letterSpacing: -1 },
-  heroLabel: { fontSize: 12.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 },
+  heroCount: { fontSize: 72, fontWeight: '900', fontStyle: 'italic', lineHeight: 76 },
+  heroLabel: { fontSize: 14, fontWeight: '700', marginTop: 2 },
   heroDetail: { fontSize: 13, fontWeight: '500', textAlign: 'center', marginTop: 14, lineHeight: 19, paddingHorizontal: 12 },
   weekRange: { fontSize: 12.5, fontWeight: '700' },
   chart: {

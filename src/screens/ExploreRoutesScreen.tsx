@@ -34,7 +34,7 @@ function distanceFromMe(route: TrainlyRoute, me: LatLon): number {
 }
 
 export function ExploreRoutesScreen() {
-  const { colors } = useTheme();
+  const { colors, colorBlindMode } = useTheme();
   const { routes, loading, error, reload } = useRoutes();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [filter, setFilter] = useState<FilterOption>('Padrão');
@@ -117,9 +117,9 @@ export function ExploreRoutesScreen() {
         .map((r) => ({
           id: r.id,
           coords: r.path.map(([latitude, longitude]) => ({ latitude, longitude })),
-          color: effectiveTier(r.creator_xp ?? 0, r.creator_map_tier).color,
+          color: effectiveTier(r.creator_xp ?? 0, r.creator_map_tier, colorBlindMode).color,
         })),
-    [routes],
+    [routes, colorBlindMode],
   );
 
   const firstLoad = loading && routes.length === 0 && !error;
@@ -246,5 +246,5 @@ const styles = StyleSheet.create({
   difficulty: { fontSize: 12, fontWeight: '800' },
   statsRow: { flexDirection: 'row', borderTopWidth: 1, paddingTop: 12 },
   miniValue: { fontSize: 13.5, fontWeight: '800' },
-  miniLabel: { fontSize: 10.5, fontWeight: '600', marginTop: 3, textTransform: 'uppercase' },
+  miniLabel: { fontSize: 12, fontWeight: '600', marginTop: 3 },
 });

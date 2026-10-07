@@ -1,22 +1,34 @@
-// Paleta oficial do Trainly, extraída de css/global.css do site.
-// Mantém os mesmos tokens para dark e light, então qualquer tela
-// que use `theme.colors.x` funciona nos dois modos automaticamente.
+// Paleta do Trainly — identidade "Noturno" (out/2026).
+//
+// O azul da marca (#2f7dfd escuro / #267cee claro) continua o MESMO do site
+// (css/global.css), pra app e site seguirem parecendo o mesmo produto. Em volta
+// dele: fundo "noite violeta" (treino noturno, estádio aceso), superfícies em
+// tons de violeta e um dourado próprio pro XP — a medalha, sempre na mesma cor.
+// A paleta veio do redesign "Arena" (aprovada pelo usuário); o que mudou no
+// "Noturno" foi a forma: linhas finas no lugar do degrau 3D de jogo infantil.
+//
+// Mantém os mesmos tokens para dark e light, então qualquer tela que use
+// `theme.colors.x` funciona nos dois modos automaticamente.
 
 export type ThemeMode = 'dark' | 'light';
 
 export interface TrainlyColors {
   primary: string;
   primaryHover: string;
+  /** Azul mais fundo (sombra do botão principal, trilho ativo). */
+  primaryLedge: string;
   background: string;
   card: string;
   textPrimary: string;
   textMuted: string;
   border: string;
+  /** Um tom mais escuro que o fundo (sombras rasas, contorno de destaque no alto contraste). */
+  ledge: string;
   avatarBg: string;
   danger: string;
   success: string;
   white: string;
-  /** Superfície um degrau acima do card (chips, campos dentro de um card). */
+  /** Superfície um degrau acima do card (chips, campos dentro de um card, trilho de barra). */
   surface: string;
   /** Primária translúcida — fundo de ícones e destaques suaves. */
   primarySoft: string;
@@ -25,21 +37,27 @@ export interface TrainlyColors {
   warning: string;
   /** Cor da sombra dos cards (só aparece de verdade no tema claro). */
   shadow: string;
-  /**
-   * "Segundo tom" de destaque do redesign — a pedido do usuário, usa o
-   * próprio azul da marca em vez de uma cor nova (a versão anterior usava um
-   * verde-limão; ficou só a mudança de layout, sem cor nova).
-   */
+  /** "Segundo tom" de destaque — o próprio azul da marca (pedido do usuário). */
   accent: string;
   accentSoft: string;
   accentGradient: readonly [string, string];
+  /** Dourado do XP: barra de nível, recompensas, "+80 XP". Preenchimento. */
+  gold: string;
+  goldLedge: string;
+  goldSoft: string;
+  /** Dourado legível como TEXTO sobre o fundo do tema (no claro é mais escuro). */
+  goldText: string;
+  /** Texto/ícone em cima de um preenchimento dourado. */
+  onGold: string;
+  /** Gradiente da barra de XP. */
+  goldGradient: readonly [string, string];
 }
 
 /**
- * Par de cores usado nos "blobs" de fundo do cabeçalho (`GradientBackdrop`).
- * Antes cada aba tinha uma cor própria (coral, dourado, ciano...); a pedido
- * do usuário isso foi removido — todas usam o mesmo azul da marca agora, só
- * o formato "hero" arredondado do cabeçalho foi mantido.
+ * Par de cores por aba. Antes alimentava os "blobs" de gradiente atrás do
+ * cabeçalho; no redesign Arena o cabeçalho ficou liso, e isso só sobra como
+ * cor de ícone de destaque (ex: bandeira da Guerra de Clã). Todas no azul da
+ * marca, a pedido do usuário.
  */
 export const SCREEN_WASH = {
   dashboard: ['#2f7dfd', '#1f5ee8'],
@@ -56,45 +74,61 @@ export type ScreenWashKey = keyof typeof SCREEN_WASH;
 export const darkColors: TrainlyColors = {
   primary: '#2f7dfd',
   primaryHover: '#5c9aff',
-  background: '#0a0b0f',
-  card: '#14161f',
-  textPrimary: '#f2f3f6',
-  textMuted: '#9a9caa',
-  border: 'rgba(255,255,255,0.08)',
+  primaryLedge: '#1a4fb8',
+  background: '#140f2a',
+  card: '#211a3e',
+  textPrimary: '#f4f1ff',
+  textMuted: '#a49cc4',
+  border: '#322a5c',
+  ledge: '#0b0820',
   avatarBg: '#2b5d34',
-  danger: '#f0554e',
-  success: '#22c55e',
+  danger: '#f2475c',
+  success: '#2ebd6b',
   white: '#ffffff',
-  surface: '#1b1e29',
-  primarySoft: 'rgba(47,125,253,0.14)',
+  surface: '#2b2352',
+  primarySoft: 'rgba(47,125,253,0.18)',
   gradient: ['#4a93ff', '#1f5ee8'],
-  warning: '#f59e0b',
+  warning: '#ff9f1c',
   shadow: '#000000',
   accent: '#2f7dfd',
-  accentSoft: 'rgba(47,125,253,0.14)',
+  accentSoft: 'rgba(47,125,253,0.18)',
   accentGradient: ['#4a93ff', '#1f5ee8'],
+  gold: '#ffc93c',
+  goldLedge: '#c98a0b',
+  goldSoft: 'rgba(255,201,60,0.15)',
+  goldText: '#ffc93c',
+  onGold: '#2a1b00',
+  goldGradient: ['#ffd966', '#f5a623'],
 };
 
 export const lightColors: TrainlyColors = {
   primary: '#267cee',
   primaryHover: '#1a63c6',
-  background: '#f4f5f7',
+  primaryLedge: '#1a57b0',
+  background: '#f3f1fb',
   card: '#ffffff',
-  textPrimary: '#242428',
-  textMuted: '#666666',
-  border: '#e6e6eb',
+  textPrimary: '#1c1638',
+  textMuted: '#6b6491',
+  border: '#e2ddf3',
+  ledge: '#d9d3ee',
   avatarBg: '#2b5d34',
-  danger: '#e0473e',
-  success: '#22c55e',
+  danger: '#dc2f45',
+  success: '#16a058',
   white: '#ffffff',
-  surface: '#f1f3f7',
-  primarySoft: 'rgba(38,124,238,0.10)',
+  surface: '#edeaf8',
+  primarySoft: 'rgba(38,124,238,0.12)',
   gradient: ['#3a8bff', '#1a5fd0'],
   warning: '#d97706',
-  shadow: '#1b2a4a',
+  shadow: '#2a1f5c',
   accent: '#267cee',
-  accentSoft: 'rgba(38,124,238,0.10)',
+  accentSoft: 'rgba(38,124,238,0.12)',
   accentGradient: ['#3a8bff', '#1a5fd0'],
+  gold: '#ffc23a',
+  goldLedge: '#d99a00',
+  goldSoft: 'rgba(245,176,0,0.16)',
+  goldText: '#9a6700',
+  onGold: '#2a1b00',
+  goldGradient: ['#ffd25e', '#f5a300'],
 };
 
 // Cores das patentes, iguais ao js/main.js do site (sistema de XP)
@@ -153,10 +187,36 @@ export function difficultyColor(difficulty: string, colors: Pick<TrainlyColors, 
   return colors.primary;
 }
 
+// Variantes das cores de patente pro modo daltonismo ativo. A paleta padrão
+// (marrom/cinza/dourado/ciano/índigo) já não é um par vermelho-verde puro,
+// então protanopia/deuteranopia trocam por um conjunto qualitativo
+// (Okabe-Ito) igualmente distinguível, mas visivelmente diferente do padrão.
+// Tritanopia é onde essa paleta tinha um risco de verdade — Platina (ciano) e
+// Ouro (dourado) moram perto do eixo azul-amarelo que esse tipo confunde —
+// então ali Platina vira verde e Ouro puxa mais pro laranja, saindo desse
+// eixo.
+const RANKS_RG_SAFE: Record<string, string> = {
+  Bronze: '#D55E00',
+  Prata: '#56B4E9',
+  Ouro: '#E69F00',
+  Platina: '#009E73',
+  Diamante: '#CC79A7',
+};
+const RANKS_BY_SAFE: Record<string, string> = {
+  Bronze: '#92400E',
+  Prata: '#94A3B8',
+  Ouro: '#F59E0B',
+  Platina: '#16A34A',
+  Diamante: '#9333EA',
+};
+
 /** Cor de uma patente pelo nome (Bronze/Prata/Ouro/Platina/Diamante) — pra
  *  moldura de avatar e cor do mapa personalizados. Cai pro Bronze se o nome
- *  não bater com nenhuma (defesa contra dado inconsistente). */
-export function tierColor(name: string): string {
+ *  não bater com nenhuma (defesa contra dado inconsistente). Passe o
+ *  `colorBlindMode` de `useTheme()` pra já vir ajustada. */
+export function tierColor(name: string, mode?: ColorBlindMode): string {
+  const table = mode === 'tritanopia' ? RANKS_BY_SAFE : mode ? RANKS_RG_SAFE : null;
+  if (table?.[name]) return table[name];
   return RANKS.find((r) => r.name === name)?.color ?? RANKS[0].color;
 }
 
@@ -260,12 +320,14 @@ function withHighContrast(c: TrainlyColors, mode: ThemeMode): TrainlyColors {
     // No escuro clareia o texto secundário; no claro escurece — os dois
     // reduzem a distância de contraste até o texto principal.
     textMuted: mode === 'dark' ? lighten(c.textMuted, 0.35) : mixTowardBlack(c.textMuted, 0.35),
-    border: mode === 'dark' ? 'rgba(255,255,255,0.22)' : '#b8b8c2',
+    border: mode === 'dark' ? '#5a5096' : '#a9a0cc',
+    // Degrau dos cards mais marcado também — é ele que separa card de fundo.
+    ledge: mode === 'dark' ? '#000000' : '#b3aad6',
   };
 }
 
 /** Escurece um hex `#rrggbb` misturando com preto — irmã de `lighten`. */
-function mixTowardBlack(hex: string, amount: number): string {
+export function mixTowardBlack(hex: string, amount: number): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex);
   if (!m) return hex;
   const n = parseInt(m[1], 16);
@@ -285,4 +347,9 @@ export function getColors(mode: ThemeMode, options?: AccessibilityOptions): Trai
     c = withHighContrast(c, mode);
   }
   return c;
+}
+
+/** Atalho legível pro degrau 3D de uma cor qualquer (botão, ícone de missão). */
+export function ledgeOf(hex: string): string {
+  return mixTowardBlack(hex, 0.32);
 }

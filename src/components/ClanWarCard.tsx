@@ -79,7 +79,7 @@ export function ClanWarCard({ clubId }: Props) {
                   <Text style={[styles.contributorName, { color: colors.textPrimary }]} numberOfLines={1}>
                     {m.name}
                   </Text>
-                  <Text style={[styles.contributorXp, { color: colors.primary }]}>{m.war_xp} XP</Text>
+                  <Text style={[styles.contributorXp, { color: colors.goldText }]}>{m.war_xp} XP</Text>
                 </View>
               ))}
             </View>
@@ -104,7 +104,7 @@ export function ClanWarCard({ clubId }: Props) {
 const styles = StyleSheet.create({
   statusPill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontSize: 10.5, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
+  statusText: { fontSize: 12, fontWeight: '800' },
   rankRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   rankBadge: { minWidth: 44, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   rankNumber: { fontSize: 15, fontWeight: '800' },

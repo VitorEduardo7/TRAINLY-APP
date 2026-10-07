@@ -5,15 +5,21 @@ import { useTheme } from '../theme/ThemeContext';
 
 interface Props extends ViewProps {
   /**
-   * Cor (ou par de cores) de um traço de destaque no topo do card — usado
-   * pra "assinar" um card com a cor da aba (ex: hero do Perfil) sem precisar
-   * de um card inteiro colorido.
+   * Cor (ou par de cores) de um traço fino de destaque no topo do card —
+   * "assina" um card sem pintar o card inteiro.
    */
   accent?: string | readonly [string, string];
+  /** Mantido por compatibilidade (era "sem degrau" na versão Arena); hoje todo card é liso. */
+  flat?: boolean;
 }
 
-export function Card({ style, children, accent, ...rest }: Props) {
-  const { colors, mode } = useTheme();
+/**
+ * Peça base da identidade Noturno: bloco liso na cor do card, contorno de
+ * 1px e cantos médios. Sem sombra e sem "degrau" — a hierarquia vem do
+ * conteúdo (números grandes, títulos condensados), não do volume da caixa.
+ */
+export function Card({ style, children, accent, flat: _flat, ...rest }: Props) {
+  const { colors } = useTheme();
   const accentColors: readonly [string, string] | undefined = accent
     ? Array.isArray(accent)
       ? (accent as readonly [string, string])
@@ -21,24 +27,9 @@ export function Card({ style, children, accent, ...rest }: Props) {
     : undefined;
 
   return (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: colors.card, borderColor: colors.border },
-        // No tema escuro a borda já separa o card do fundo; no claro, uma
-        // sombra bem leve dá o relevo (sem ela o card "some" no cinza claro).
-        mode === 'light' && [styles.lightShadow, { shadowColor: colors.shadow }],
-        style,
-      ]}
-      {...rest}
-    >
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }, style]} {...rest}>
       {accentColors && (
-        <LinearGradient
-          colors={accentColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.accentBar}
-        />
+        <LinearGradient colors={accentColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.accentBar} />
       )}
       {children}
     </View>
@@ -48,21 +39,15 @@ export function Card({ style, children, accent, ...rest }: Props) {
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
-    borderRadius: 22,
+    borderRadius: 18,
     padding: 18,
-  },
-  lightShadow: {
-    shadowOpacity: 0.06,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 1,
+    overflow: 'hidden',
   },
   accentBar: {
     position: 'absolute',
     top: 0,
-    left: 18,
-    right: 18,
-    height: 3,
-    borderRadius: 3,
+    left: 0,
+    right: 0,
+    height: 2,
   },
 });

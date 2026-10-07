@@ -10,18 +10,23 @@ interface Props {
   style?: StyleProp<ViewStyle>;
 }
 
-/** Título pequeno de seção, em caixa alta, igual em todas as telas. */
+/**
+ * Título de seção: frase normal (sem caixa alta), em Barlow Condensed na
+ * cor do texto principal — o mesmo tom de "manchete de placar" dos números.
+ */
 export function SectionTitle({ title, right, style }: Props) {
   const { colors } = useTheme();
   return (
     <View style={[styles.row, style]}>
-      <Text style={[styles.title, { color: colors.textMuted }]}>{title}</Text>
+      <Text style={[styles.title, { color: colors.textPrimary }]} numberOfLines={1}>
+        {title}
+      </Text>
       {right}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, minHeight: 20 },
-  title: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.9 },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, minHeight: 22, gap: 10 },
+  title: { fontSize: 22, fontWeight: '800', letterSpacing: 0.1, flexShrink: 1 },
 });

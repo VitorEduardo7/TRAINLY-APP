@@ -30,7 +30,7 @@ export function TrainlyInput({ label, labelRight, icon, style, secureTextEntry, 
         style={[
           styles.field,
           multiline && styles.fieldMultiline,
-          { backgroundColor: colors.card, borderColor: focused ? colors.primary : colors.border },
+          { backgroundColor: colors.surface, borderColor: focused ? colors.primary : colors.border },
         ]}
       >
         {icon ? (
@@ -81,20 +81,21 @@ const styles = StyleSheet.create({
   wrapper: { marginBottom: 16 },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 },
   label: {
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: '600',
   },
   field: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
-    borderRadius: 13,
-    minHeight: 50,
+    borderWidth: 1,
+    borderRadius: 12,
+    minHeight: 52,
   },
   fieldMultiline: { alignItems: 'flex-start' },
   icon: { marginLeft: 14 },
   input: {
     flex: 1,
+    minWidth: 0,
     paddingRight: 14,
     paddingVertical: 12,
     fontSize: 15,

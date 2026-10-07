@@ -2,6 +2,63 @@
 
 App mobile do TCC Trainly, feito em **React Native (Expo) + TypeScript**, com **Supabase** como backend. Réplica em app nativo do núcleo do site: login, dashboard com XP/patentes, corrida por GPS ao vivo, feed de amigos, clubes com desafios, rotas públicas, histórico e perfil com estatísticas.
 
+## Comandos rápidos (CMD do Windows)
+
+Cola num CMD aberto **dentro da pasta do projeto**. Troque o caminho pelo da sua máquina — no PC do laboratório é `C:\Users\lab1-aluno\Desktop\TRAINLY-APP`.
+
+```cmd
+cd C:\Users\lab1-aluno\Desktop\TRAINLY-APP
+```
+
+**Primeira vez nesse PC, ou depois de colar arquivos novos no projeto** (instala tudo que o app usa, inclusive o pacote do túnel):
+```cmd
+npm install
+```
+
+**Rodar com o celular na MESMA rede Wi-Fi do PC** (mais rápido):
+```cmd
+npx expo start
+```
+
+**Rodar com o celular em OUTRA rede** (ex: PC no Wi-Fi do laboratório, celular no 4G) — usa túnel:
+```cmd
+npx expo start --tunnel
+```
+Se o túnel reclamar que falta o ngrok (`CommandError: Install @expo/ngrok...`), instale **dentro do projeto** (nunca com `-g`) e rode de novo:
+```cmd
+npx expo install @expo/ngrok
+npx expo start --tunnel
+```
+
+**Algo estranho depois de atualizar arquivos** (erro de módulo, tela antiga, fonte que não carrega) — rode limpando o cache do Metro:
+```cmd
+npx expo start --tunnel -c
+```
+
+**Abrir no emulador MEmu no PC** (não precisa de túnel): ative o ADB nas configurações do MEmu (ele mostra uma porta, normalmente 21503) e rode:
+```cmd
+"C:\Program Files\Microvirt\MEmu\adb.exe" connect 127.0.0.1:21503
+npx expo start
+```
+Com o servidor rodando, aperte **`a`** no terminal: o Expo instala o Expo Go no emulador e abre o app sozinho.
+
+**Gerar um APK instalável / mandar atualização pra quem já tem o APK** (ver Passos 3 e 4 — na primeira vez no PC, antes: `npm install -g eas-cli` e `eas login`):
+```cmd
+eas build --platform android --profile preview
+eas update --branch preview --message "descrição da mudança"
+```
+
+### Problemas comuns
+
+| Mensagem / sintoma | O que fazer |
+| --- | --- |
+| `CommandError: Install @expo/ngrok` | `npx expo install @expo/ngrok` dentro da pasta do projeto (instalar global com `-g` costuma falhar no Windows). Depois `npx expo start --tunnel`. |
+| `TypeError: Cannot read properties of undefined (reading 'body')` + "Check the Ngrok status page" | O pacote do túnel está instalado, mas o ngrok **não conseguiu conectar**. Feche outros terminais rodando o Expo, rode `taskkill /F /IM ngrok.exe` e tente de novo. Rede de escola/laboratório costuma bloquear o ngrok: teste em outra rede (ex: roteador do celular) ou rode sem túnel com PC e celular no mesmo Wi-Fi. Não precisa criar conta nem token no ngrok — o Expo usa uma conta própria. |
+| `Unable to resolve "algum-arquivo" from "src\..."` | Falta instalar algo: `npm install` e depois `npx expo start -c`. |
+| App abre, mas não carrega dados / login falha | Confira o `.env` (Passo 1, item 4). Se o projeto do Supabase foi **pausado** (o plano grátis pausa depois de ~7 dias sem uso), entre em supabase.com, abra o projeto e clique em **Restore project** — os dados voltam intactos, sem precisar de backup. |
+
+---
+
 ## O que já está pronto
 
 - Login e cadastro (Supabase Auth)
@@ -14,13 +71,15 @@ App mobile do TCC Trainly, feito em **React Native (Expo) + TypeScript**, com **
 - **Clubes e desafios**: criar clube (gera um código de convite, igual ao site — clube não aparece em lista pública, só entra quem tem o código), criar desafios com meta de km e período, ranking calculado a partir das atividades reais dos membros
 - **Explorar rotas**: lista pública de rotas (publicadas a partir de atividades de outros usuários), com mapa, distância, elevação, dificuldade e terreno
 - Perfil com resumo (distância total, tempo ativo, elevação, dias ativos), recordes pessoais, edição de perfil, tema claro/escuro
-- Visual com as cores oficiais do site (`#2f7dfd` / `#267cee`) e fonte Inter
+- Visual próprio (identidade "Noturno"): fundo violeta escuro ou lavanda no tema claro, o azul oficial do site (`#2f7dfd` / `#267cee`), dourado pro XP, fonte Inter no texto e Barlow Condensed nos títulos e números (vem dentro do projeto, em `assets/fonts`). O nível aparece como uma volta numa pista de atletismo na tela inicial
+- Gamificação: conquistas, sequência semanal, desafios diários/semanais, Guerra de Clã entre clubes, moldura de avatar e cor do mapa por patente
+- Configurações: trocar e-mail e senha, tema, e acessibilidade (modos de daltonismo, alto contraste, tamanho do texto, reduzir animações)
 - Navegação por abas fixas embaixo da tela (em vez do menu superior do site) — é o padrão de app nativo no Android/iPhone, mais fácil de usar com o polegar
 
 ## O que ficou de fora desta primeira versão (dá pra evoluir depois)
 
 - Mensagens privadas entre atletas (decisão deliberada: o perfil público mostra o atleta e deixa seguir, mas o app não tem conversa privada)
-- Notificações
+- Notificações push (com o app fechado) — hoje as notificações existem só dentro do app (sino com seguidas, curtidas e comentários)
 - Seguir uma rota "ao vivo" durante a corrida (hoje dá pra ver a rota antes, mas o app não guia nem avisa desvio)
 - Rastreio de GPS em segundo plano (com o app minimizado) — hoje funciona com o app aberto/tela ligada, igual ao mapa do site, mas com muito mais estabilidade por não depender do navegador
 
@@ -29,16 +88,22 @@ App mobile do TCC Trainly, feito em **React Native (Expo) + TypeScript**, com **
 ## Passo 1 — Criar o backend no Supabase (grátis)
 
 1. Crie uma conta em [supabase.com](https://supabase.com) e um novo projeto.
-2. Vá em **SQL Editor** → **New query**, cole todo o conteúdo do arquivo `supabase/schema.sql` deste projeto e clique em **Run**. Isso cria as tabelas de perfis e atividades, já com as regras de segurança e o cálculo automático de XP.
-3. Ainda no **SQL Editor**, abra **New query** de novo, cole todo o conteúdo de `supabase/clubs_and_routes.sql` e clique em **Run**. Isso cria as tabelas de clubes, membros, desafios e rotas.
-4. Repita mais uma vez com `supabase/social.sql`: **New query** → colar → **Run**. Isso cria as tabelas de seguir/curtir.
-5. Repita de novo com `supabase/comments.sql`: **New query** → colar → **Run**. Isso cria a tabela de comentários nas atividades (comentar, responder, apagar).
+2. Vá em **SQL Editor** e rode os arquivos da pasta `supabase/` **um por vez, em queries separadas** (**New query** → colar o arquivo inteiro → **Run**), **nesta ordem** — cada um depende dos anteriores:
+   1. `schema.sql` — perfis e atividades (com o cálculo automático de XP)
+   2. `avatars_storage.sql` — fotos de perfil
+   3. `clubs_and_routes.sql` — clubes, membros, desafios e rotas
+   4. `social.sql` — seguir pessoas e curtidas
+   5. `comments.sql` — comentários nas atividades
+   6. `gamification_schema.sql` — conquistas
+   7. `cosmetics_schema.sql` — moldura do avatar e cor do mapa por patente
+   8. `streak_schema.sql` — sequência semanal
+   9. `quests_schema.sql` — desafios diários e semanais
+   10. `clan_war_schema.sql` — Guerra de Clã
+   11. `clubs_moderation_schema.sql` — remover/silenciar membro e bloquear usuário
 
-   **Importante**: os quatro arquivos rodam em **queries separadas**, nessa ordem (schema.sql → clubs_and_routes.sql → social.sql → comments.sql) — não cole todos juntos na mesma query. Depois de rodar, confira em **Table Editor** (menu lateral) se aparecem as tabelas `profiles`, `activities`, `clubs`, `club_members`, `club_challenges`, `routes`, `following`, `activity_likes` e `activity_comments`. Se alguma faltar, é sinal de que o arquivo correspondente não rodou.
-
-   **Já rodou `clubs_and_routes.sql` antes?** Ele ganhou um bloco novo no final (seção "v2.1"), que evita clubes "órfãos" sem admin caso o criador saia. É seguro rodar o arquivo inteiro de novo (as tabelas usam `if not exists` e as políticas repetidas só dão um erro inofensivo de "já existe", pode ignorar) — ou, se preferir, copiar só o bloco a partir de `-- v2.1` e rodar sozinho numa query nova.
-6. Vá em **Project Settings → API** e copie a **Project URL** e a **anon public key**.
-7. Nesta pasta, copie `.env.example` para `.env` e cole os dois valores:
+   Não cole todos juntos na mesma query. Se algum arquivo der erro de "já existe", é porque ele já tinha rodado antes — pode seguir pro próximo.
+3. Vá em **Project Settings → API** e copie a **Project URL** e a **anon public key**.
+4. Nesta pasta, copie `.env.example` para `.env` e cole os dois valores:
    ```
    EXPO_PUBLIC_SUPABASE_URL=https://SEU-PROJETO.supabase.co
    EXPO_PUBLIC_SUPABASE_ANON_KEY=sua-chave-aqui
@@ -58,7 +123,7 @@ App mobile do TCC Trainly, feito em **React Native (Expo) + TypeScript**, com **
 4. Escaneie o QR code que aparece no terminal:
    - **Android**: pelo próprio app Expo Go.
    - **iPhone**: pela câmera nativa do iPhone (abre automaticamente no Expo Go).
-5. O celular e o computador precisam estar na mesma rede Wi-Fi.
+5. O celular e o computador precisam estar na mesma rede Wi-Fi. Se não estiverem, use `npx expo start --tunnel` (ver **Comandos rápidos** lá em cima).
 
 Esse é o jeito mais rápido de testar e apresentar em qualquer celular, Android ou iPhone, sem custo.
 
@@ -132,17 +197,15 @@ O sintoma clássico de esquecer isso numa tela é o que aconteceu na aba **Amigo
 
 ```
 src/
-  theme/        cores, modo claro/escuro
+  theme/        cores, fontes, modo claro/escuro e acessibilidade
   lib/          Supabase, cálculo de XP e trilha de patentes, resumo/recordes, cálculo de GPS (Haversine)
   hooks/        autenticação, atividades, clubes/desafios, rotas, amigos/feed, perfil público
   components/   botões, inputs, cards, avatar, widgets (patente e trilha) e modais reutilizáveis
   screens/      Login, Dashboard, Amigos, Corrida (GPS), Clubes, Explorar Rotas, Histórico, Perfil, Perfil de outro atleta
   navigation/   navegação entre telas (abas fixas + telas empilhadas)
-supabase/
-  schema.sql              schema base: perfis e atividades (rodar 1º)
-  clubs_and_routes.sql    clubes, membros, desafios e rotas (rodar 2º)
-  social.sql              seguir pessoas e curtidas (rodar 3º)
-  comments.sql            comentários nas atividades (rodar 4º)
+assets/
+  fonts/        Barlow Condensed (títulos e números) + licença OFL
+supabase/       11 arquivos .sql — rodar na ordem do Passo 1
 ```
 
 ## Próximos passos sugeridos (se sobrar tempo até 24/10)

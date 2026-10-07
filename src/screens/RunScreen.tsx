@@ -43,7 +43,7 @@ type LatLon = { latitude: number; longitude: number };
 type Phase = 'idle' | 'running' | 'paused';
 
 export function RunScreen() {
-  const { colors } = useTheme();
+  const { colors, colorBlindMode } = useTheme();
   const { profile, refreshProfile } = useAuth();
   const { createActivity } = useActivities(profile?.id);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -358,7 +358,7 @@ export function RunScreen() {
 
   // Aqui o trajeto é SEU (corrida ao vivo), então a cor é sua personalização
   // escolhida — diferente do RouteDetailScreen, que mostra a de quem criou.
-  const mapTier = effectiveTier(profile?.xp ?? 0, profile?.equipped_map_tier);
+  const mapTier = effectiveTier(profile?.xp ?? 0, profile?.equipped_map_tier, colorBlindMode);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>

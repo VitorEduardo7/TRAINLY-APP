@@ -19,10 +19,10 @@ interface Props {
  * do nível), aqui a ideia é ver o caminho inteiro.
  */
 export function RankTrail({ xp, subjectName }: Props) {
-  const { colors } = useTheme();
-  const steps = rankTrail(xp);
-  const next = nextRankStep(xp);
-  const { level } = levelInfo(xp);
+  const { colors, colorBlindMode } = useTheme();
+  const steps = rankTrail(xp, colorBlindMode);
+  const next = nextRankStep(xp, colorBlindMode);
+  const { level } = levelInfo(xp, colorBlindMode);
 
   return (
     <View>
@@ -47,14 +47,14 @@ export function RankTrail({ xp, subjectName }: Props) {
         {next ? (
           <Text style={[styles.captionText, { color: colors.textMuted }]}>
             {subjectName ? `${subjectName} está` : 'Você está'} no{' '}
-            <Text style={{ color: colors.textPrimary, fontWeight: '800' }}>nível {level}</Text> —{' '}
+            <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>nível {level}</Text> —{' '}
             {next.levelsAway === 1 ? 'falta 1 nível' : `faltam ${next.levelsAway} níveis`} (
             {next.xpAway.toLocaleString('pt-BR')} XP) pra{' '}
-            <Text style={{ color: next.color, fontWeight: '800' }}>{next.name}</Text>.
+            <Text style={{ color: next.color, fontWeight: '700' }}>{next.name}</Text>.
           </Text>
         ) : (
           <Text style={[styles.captionText, { color: colors.textMuted }]}>
-            <Text style={{ color: colors.textPrimary, fontWeight: '800' }}>Patente máxima alcançada</Text> — nível{' '}
+            <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>Patente máxima alcançada</Text> — nível{' '}
             {level} e contando.
           </Text>
         )}
@@ -85,10 +85,10 @@ function StepColumn({
       <View style={styles.badgeRow}>
         <View style={[styles.line, { backgroundColor: lineColor(lineBefore) }]} />
 
-        {/* Anel externo: sempre presente pra não mudar a altura entre as
-            colunas — só ganha cor na patente atual. */}
-        <View style={[styles.ring, { borderColor: step.isCurrent ? step.color : 'transparent' }]}>
-          <RankBadge icon={step.emblem} color={step.color} size={38} locked={!step.achieved} />
+        {/* Caixa de tamanho fixo pra não mudar a altura entre as colunas — a
+            patente atual só ganha um emblema maior. */}
+        <View style={styles.ring}>
+          <RankBadge icon={step.emblem} color={step.color} size={step.isCurrent ? 38 : 28} locked={!step.achieved} />
         </View>
 
         <View style={[styles.line, { backgroundColor: lineColor(lineAfter) }]} />
@@ -121,11 +121,11 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-start' },
   col: { flex: 1, alignItems: 'center' },
   badgeRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch' },
-  line: { flex: 1, height: 3, borderRadius: 2 },
-  ring: { padding: 3, borderRadius: 26, borderWidth: 2 },
-  name: { fontSize: 11, fontWeight: '800', marginTop: 8 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 3 },
-  meta: { fontSize: 9.5, fontWeight: '700', textTransform: 'uppercase' },
-  caption: { flexDirection: 'row', gap: 10, marginTop: 18, padding: 12, borderRadius: 12 },
-  captionText: { flex: 1, fontSize: 12.5, fontWeight: '600', lineHeight: 18 },
+  line: { flex: 1, height: 2 },
+  ring: { width: 44, height: 46, alignItems: 'center', justifyContent: 'center' },
+  name: { fontSize: 12.5, fontWeight: '700', marginTop: 6 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 1 },
+  meta: { fontSize: 11, fontWeight: '500' },
+  caption: { flexDirection: 'row', gap: 10, marginTop: 18, padding: 13, borderRadius: 12 },
+  captionText: { flex: 1, fontSize: 12.5, fontWeight: '500', lineHeight: 18 },
 });

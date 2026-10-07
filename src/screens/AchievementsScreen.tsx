@@ -80,9 +80,9 @@ export function AchievementsScreen() {
                 {a.description}
               </Text>
               <View style={styles.footer}>
-                <View style={[styles.xpPill, { backgroundColor: colors.surface }]}>
-                  <Ionicons name="star" size={11} color={colors.warning} />
-                  <Text style={[styles.xpText, { color: colors.textMuted }]}>+{a.xp_reward} XP</Text>
+                <View style={[styles.xpPill, { backgroundColor: a.unlocked ? colors.goldSoft : colors.surface }]}>
+                  <Ionicons name="star" size={11} color={a.unlocked ? colors.goldText : colors.textMuted} />
+                  <Text style={[styles.xpText, { color: a.unlocked ? colors.goldText : colors.textMuted }]}>+{a.xp_reward} XP</Text>
                 </View>
                 {a.unlocked && a.unlockedAt ? (
                   <Text style={[styles.unlockedDate, { color: colors.textMuted }]}>
@@ -102,8 +102,8 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   content: { padding: 20, paddingBottom: 40 },
   summary: { alignItems: 'center', marginBottom: 20 },
-  summaryValue: { fontSize: 32, fontWeight: '900', letterSpacing: -0.8 },
-  summaryLabel: { fontSize: 12.5, fontWeight: '700', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  summaryValue: { fontSize: 56, fontWeight: '900', fontStyle: 'italic', lineHeight: 60 },
+  summaryLabel: { fontSize: 14, fontWeight: '700', marginTop: 2 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   cardWrap: { flexBasis: '47%', flexGrow: 1 },
   card: { alignItems: 'flex-start', minHeight: 152 },

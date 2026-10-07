@@ -491,7 +491,7 @@ const MAPLIBRE_VERSION = '5.24.0';
  */
 function buildMapHtml(mode: 'dark' | 'light'): string {
   const styleUrl = mode === 'dark' ? STYLE_URL.dark : STYLE_URL.light;
-  const bg = mode === 'dark' ? '#0a0b0f' : '#f4f5f7';
+  const bg = mode === 'dark' ? '#140f2a' : '#f3f1fb';
 
   return `<!DOCTYPE html>
 <html>

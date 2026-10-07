@@ -1,42 +1,50 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
-import { lighten } from '../theme/colors';
 import { emblemFor, levelInfo } from '../lib/rank';
 import { RankBadge } from './RankBadge';
-import { ProgressBar } from './ProgressBar';
+import { SegmentedBar } from './SegmentedBar';
 import { Text } from './Typography';
 
+/**
+ * Patente + nível + barra de XP em parciais. O XP é sempre DOURADO (a
+ * "medalha" do app, mesma cor em todo lugar); a cor da patente fica no
+ * emblema e no nome.
+ */
 export function RankWidget({ xp }: { xp: number }) {
-  const { colors } = useTheme();
-  const info = levelInfo(xp);
+  const { colors, colorBlindMode } = useTheme();
+  const info = levelInfo(xp, colorBlindMode);
   const missing = Math.max(0, info.xpToNext - info.xpIntoLevel);
 
   return (
     <View>
       <View style={styles.top}>
-        <RankBadge icon={emblemFor(info.rank.name)} color={info.rank.color} size={50} />
+        <RankBadge icon={emblemFor(info.rank.name)} color={info.rank.color} size={46} />
         <View style={{ flex: 1 }}>
-          <Text style={[styles.rankName, { color: info.rank.color }]}>Patente {info.rank.name}</Text>
+          <Text style={[styles.rankName, { color: colors.textMuted }]}>
+            Patente <Text style={{ color: info.rank.color, fontWeight: '600' }}>{info.rank.name}</Text>
+          </Text>
           <Text style={[styles.level, { color: colors.textPrimary }]}>Nível {info.level}</Text>
         </View>
-        <View style={[styles.xpPill, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.xpPillText, { color: colors.textPrimary }]}>{xp.toLocaleString('pt-BR')} XP</Text>
+        <View style={styles.xpCol}>
+          <Text style={[styles.xpTotal, { color: colors.goldText }]}>{xp.toLocaleString('pt-BR')}</Text>
+          <Text style={[styles.xpLabel, { color: colors.textMuted }]}>XP total</Text>
         </View>
       </View>
 
-      <ProgressBar
+      <SegmentedBar
         progress={info.xpToNext > 0 ? info.xpIntoLevel / info.xpToNext : 0}
-        height={10}
-        gradient={[lighten(info.rank.color, 0.25), info.rank.color]}
+        segments={14}
+        height={9}
+        color={colors.gold}
       />
 
       <View style={styles.captionRow}>
         <Text style={[styles.caption, { color: colors.textMuted }]}>
-          {info.xpIntoLevel} / {info.xpToNext} XP
+          {info.xpIntoLevel} de {info.xpToNext} XP
         </Text>
         <Text style={[styles.caption, { color: colors.textMuted }]}>
-          faltam <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{missing} XP</Text> pro nível {info.level + 1}
+          faltam <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>{missing}</Text> pro nível {info.level + 1}
         </Text>
       </View>
     </View>
@@ -44,11 +52,12 @@ export function RankWidget({ xp }: { xp: number }) {
 }
 
 const styles = StyleSheet.create({
-  top: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 },
-  rankName: { fontSize: 11.5, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
-  level: { fontSize: 22, fontWeight: '800', letterSpacing: -0.4, marginTop: 1 },
-  xpPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
-  xpPillText: { fontSize: 12, fontWeight: '700' },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 14 },
+  rankName: { fontSize: 13, fontWeight: '500' },
+  level: { fontSize: 32, fontWeight: '900', fontStyle: 'italic', lineHeight: 36 },
+  xpCol: { alignItems: 'flex-end' },
+  xpTotal: { fontSize: 24, fontWeight: '900', fontStyle: 'italic', lineHeight: 28 },
+  xpLabel: { fontSize: 11.5, fontWeight: '500' },
   captionRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 9, gap: 8 },
-  caption: { fontSize: 12, fontWeight: '600' },
+  caption: { fontSize: 12.5, fontWeight: '500' },
 });

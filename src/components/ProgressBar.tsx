@@ -10,15 +10,19 @@ interface Props {
   height?: number;
   /** Cor sólida da barra. Sem ela, usa o gradiente da marca. */
   color?: string;
-  /** Duas cores pra um gradiente próprio (ex: cor da patente). */
+  /** Duas cores pra um gradiente próprio (ex: cor da patente, dourado do XP). */
   gradient?: readonly [string, string];
   trackColor?: string;
   delay?: number;
   style?: StyleProp<ViewStyle>;
 }
 
-/** Barra de progresso que "enche" animada ao aparecer e a cada mudança. */
-export function ProgressBar({ progress, height = 8, color, gradient, trackColor, delay = 0, style }: Props) {
+/**
+ * Barra de progresso lisa e fina, pra quando a barra em parciais
+ * (`SegmentedBar`) seria demais — rankings, listas densas. "Enche" animada
+ * ao aparecer e a cada mudança.
+ */
+export function ProgressBar({ progress, height = 6, color, gradient, trackColor, delay = 0, style }: Props) {
   const { colors } = useTheme();
   const target = Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 0));
   const anim = useRef(new Animated.Value(prefersReducedMotion() ? target : 0)).current;
@@ -47,7 +51,7 @@ export function ProgressBar({ progress, height = 8, color, gradient, trackColor,
     <View
       style={[
         styles.track,
-        { height, borderRadius: height / 2, backgroundColor: trackColor ?? colors.border },
+        { height, borderRadius: height / 2, backgroundColor: trackColor ?? colors.surface },
         style,
       ]}
     >

@@ -20,11 +20,11 @@ interface Props {
  * trocar pra qualquer patente já desbloqueada — não precisa ser a atual.
  */
 export function CustomizationPreviewCard({ profile, onPress }: Props) {
-  const { colors } = useTheme();
+  const { colors, colorBlindMode } = useTheme();
   if (!profile) return null;
 
-  const frame = effectiveTier(profile.xp, profile.equipped_frame_tier);
-  const map = effectiveTier(profile.xp, profile.equipped_map_tier);
+  const frame = effectiveTier(profile.xp, profile.equipped_frame_tier, colorBlindMode);
+  const map = effectiveTier(profile.xp, profile.equipped_map_tier, colorBlindMode);
 
   return (
     <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel="Personalizar moldura e cor do mapa">
@@ -59,6 +59,6 @@ const styles = StyleSheet.create({
   item: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   divider: { width: 1, alignSelf: 'stretch', marginVertical: 2, marginHorizontal: 10 },
   swatch: { width: 38, height: 38, borderRadius: 12 },
-  label: { fontSize: 10.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.3 },
+  label: { fontSize: 12, fontWeight: '700' },
   value: { fontSize: 13.5, fontWeight: '800', marginTop: 2 },
 });

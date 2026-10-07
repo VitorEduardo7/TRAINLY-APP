@@ -5,6 +5,7 @@ import { Text } from './Typography';
 import { AvatarZoomModal } from './AvatarZoomModal';
 import { tapLight } from '../lib/haptics';
 import { lighten, tierColor, withAlpha } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 function getInitials(name: string): string {
   return (name || '?')
@@ -53,40 +54,34 @@ interface Props {
 }
 
 /**
- * Moldura "de verdade": brilho suave atrás + anel em degradê nas cores da
- * patente, tudo gerado em código (sem depender de nenhuma imagem pronta) —
- * evolução do anel simples (`ringColor`) usado no resto do app.
+ * Moldura de patente: um anel fino na cor da patente, separado da foto por
+ * um respiro transparente — discreto, tipo aro de medalha. Ocupa o mesmo
+ * espaço total de antes (ver `avatarFrameSize`), então quem ancora coisas na
+ * borda (o selo de sequência do Perfil) não muda.
  */
 function TierFrame({ tier, size, children }: { tier: string; size: number; children: React.ReactNode }) {
-  const base = tierColor(tier);
-  const light = lighten(base, 0.4);
+  const { colorBlindMode } = useTheme();
+  const base = tierColor(tier, colorBlindMode);
   const ringWidth = Math.max(3, Math.round(size * 0.09));
   const outer = size + ringWidth * 2;
-  const glow = outer + 12;
+  const frame = outer + 12;
+  const stroke = Math.max(2, Math.round(size * 0.035));
+  const gap = (frame - size) / 2 - stroke;
 
   return (
-    <View style={{ width: glow, height: glow, alignItems: 'center', justifyContent: 'center' }}>
-      <View
-        style={[
-          StyleSheet.absoluteFill,
-          { borderRadius: glow / 2, backgroundColor: withAlpha(base, 0.3) },
-        ]}
-      />
-      <LinearGradient
-        colors={[light, base, light]}
-        start={{ x: 0.1, y: 0 }}
-        end={{ x: 0.9, y: 1 }}
-        style={{
-          width: outer,
-          height: outer,
-          borderRadius: outer / 2,
-          padding: ringWidth,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {children}
-      </LinearGradient>
+    <View
+      style={{
+        width: frame,
+        height: frame,
+        borderRadius: frame / 2,
+        borderWidth: stroke,
+        borderColor: base,
+        padding: gap,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {children}
     </View>
   );
 }

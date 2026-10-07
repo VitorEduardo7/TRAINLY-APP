@@ -22,6 +22,7 @@ import { tapLight, success } from '../lib/haptics';
 import { formatClock, formatKm, paceMinPerKm } from '../lib/geo';
 import { Activity, RouteDifficulty, RouteType } from '../types/models';
 import { RootStackParamList } from '../navigation/types';
+import { XpChip } from '../components/XpChip';
 
 const ROUTE_TYPES: RouteType[] = ['Corrida', 'Ciclismo', 'Caminhada'];
 
@@ -122,7 +123,7 @@ export function HistoryScreen() {
                 })}
               </Text>
             </View>
-            <Text style={[styles.xp, { color: colors.accent }]}>+{item.xp_earned} XP</Text>
+            <XpChip xp={item.xp_earned} label />
           </View>
 
           <View style={[styles.statsRow, { borderColor: colors.border }]}>
@@ -263,5 +264,5 @@ const styles = StyleSheet.create({
   publishedBtnText: { fontSize: 13.5, fontWeight: '800' },
   lockedHint: { fontSize: 11.5, fontWeight: '600', marginTop: 8, textAlign: 'center', lineHeight: 16 },
   miniValue: { fontSize: 14, fontWeight: '800' },
-  miniLabel: { fontSize: 10.5, fontWeight: '600', marginTop: 3, textTransform: 'uppercase' },
+  miniLabel: { fontSize: 12, fontWeight: '600', marginTop: 3 },
 });

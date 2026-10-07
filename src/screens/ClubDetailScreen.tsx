@@ -186,7 +186,7 @@ export function ClubDetailScreen() {
                 <Ionicons name="people" size={14} color={colors.textMuted} />
                 <Text style={[styles.memberCount, { color: colors.textMuted }]}>
                   {members.length} {members.length === 1 ? 'membro' : 'membros'}
-                  {isAdmin ? ' · você é admin' : ''}
+                  {isAdmin ? ', você é admin' : ''}
                 </Text>
               </View>
             </View>
@@ -240,7 +240,7 @@ export function ClubDetailScreen() {
                 </Text>
                 <Text style={[styles.memberItemMeta, { color: colors.textMuted }]}>
                   {member.role === 'admin' ? 'Admin' : 'Membro'}
-                  {member.silenced ? ' · silenciado' : ''}
+                  {member.silenced ? ', silenciado' : ''}
                 </Text>
               </View>
               {busy ? (
@@ -320,7 +320,7 @@ export function ClubDetailScreen() {
                   <View style={styles.metaItem}>
                     <Ionicons name="navigate-outline" size={14} color={colors.textMuted} />
                     <Text style={[styles.challengeMeta, { color: colors.textMuted }]}>
-                      Meta: <Text style={{ color: colors.textPrimary, fontWeight: '800' }}>{Number(challenge.goal_km)} km</Text>
+                      Meta: <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{Number(challenge.goal_km)} km</Text>
                     </Text>
                   </View>
                 </View>
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginTop: 16,
   },
-  codeLabel: { fontSize: 10.5, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  codeLabel: { fontSize: 12, fontWeight: '700' },
   codeValue: { fontSize: 19, fontWeight: '800', letterSpacing: 2, marginTop: 2 },
   codeHint: { fontSize: 10.5, fontWeight: '600', textAlign: 'right' },
   challengeCard: { marginBottom: 12 },
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusText: { fontSize: 10.5, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
+  statusText: { fontSize: 12, fontWeight: '800' },
   challengeMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 12 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   challengeMeta: { fontSize: 12, fontWeight: '600' },

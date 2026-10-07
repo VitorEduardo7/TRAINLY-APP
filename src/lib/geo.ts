@@ -87,6 +87,16 @@ const SPEED_CEILING_KMH: Record<TrainlyActivityKind, number> = {
   Ciclismo: 70,
 };
 
+// Velocidade ABAIXO da qual o ritmo não é mostrado. Parado, o GPS não reporta
+// zero: ele oscila uns centímetros por segundo, e isso virava um "ritmo atual"
+// absurdo (0,68 km/h = 88'28"/km aparecendo na tela com 0,00 km percorrido).
+// Abaixo desses valores a leitura é ruído, não deslocamento — mostra --'--".
+const SPEED_FLOOR_KMH: Record<TrainlyActivityKind, number> = {
+  Corrida: 2.5, // ~24'/km, mais lento que qualquer trote
+  Caminhada: 1.8, // ~33'/km, mais lento que um passeio
+  Ciclismo: 3.5,
+};
+
 export function isAccuratePoint(accuracyM: number | null): boolean {
   return accuracyM == null || accuracyM <= MAX_ACCURACY_M;
 }
@@ -256,7 +266,7 @@ export function paceFromSpeedMps(
 ): string | null {
   if (speedMps == null || speedMps < 0) return null;
   const speedKmh = speedMps * 3.6;
-  if (speedKmh <= 0.5) return null; // essencialmente parado — quem chama decide o que mostrar
+  if (speedKmh < SPEED_FLOOR_KMH[activityKind]) return null; // parado ou ruído de GPS
   if (speedKmh > SPEED_CEILING_KMH[activityKind]) return null; // leitura implausível, ignora
   return paceMinPerKm(1, 3600 / speedKmh);
 }

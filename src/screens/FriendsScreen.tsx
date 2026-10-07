@@ -546,7 +546,7 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', alignItems: 'center', borderRadius: 14, paddingVertical: 12, marginBottom: 12 },
   statDivider: { width: 1, height: 26 },
   miniValue: { fontSize: 15, fontWeight: '800', letterSpacing: -0.2 },
-  miniLabel: { fontSize: 10, fontWeight: '700', marginTop: 3, textTransform: 'uppercase', letterSpacing: 0.4 },
+  miniLabel: { fontSize: 11.5, fontWeight: '700', marginTop: 3 },
   actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 22, paddingHorizontal: 2 },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 2 },
   actionText: { fontSize: 13, fontWeight: '700' },

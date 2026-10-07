@@ -48,7 +48,7 @@ export function SportBadge({ type, size = 42, style }: { type: string; size?: nu
     <View
       style={[
         styles.badge,
-        { width: size, height: size, borderRadius: size * 0.3, backgroundColor: withAlpha(color, 0.14) },
+        { width: size, height: size, borderRadius: size / 2, backgroundColor: withAlpha(color, 0.14) },
         style,
       ]}
     >
