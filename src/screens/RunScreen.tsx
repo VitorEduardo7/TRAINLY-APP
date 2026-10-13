@@ -8,11 +8,12 @@ import * as Location from 'expo-location';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../theme/ThemeContext';
+import { withAlpha } from '../theme/colors';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks/useAuth';
 import { useActivities } from '../hooks/useActivities';
 import { TrainlyButton } from '../components/TrainlyButton';
 import { ChipSelector } from '../components/ChipSelector';
-import { StatTile } from '../components/StatTile';
 import { PressableScale, usePulse } from '../components/Motion';
 import { Text } from '../components/Typography';
 import { tapLight, success, warning } from '../lib/haptics';
@@ -362,16 +363,25 @@ export function RunScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <TrainlyMap
-        style={styles.map}
-        center={center}
-        path={path}
-        pathColor={mapTier.color}
-        markers={mapMarkers}
-        followSmoothly
-        offlineHint="Sua corrida está sendo gravada normalmente — distância, tempo, ritmo e o trajeto para publicar como rota. Só o desenho do mapa precisa de internet."
-      />
-      <MapTierBadge tierName={mapTier.name} color={mapTier.color} style={[styles.tierBadge, { top: insets.top + 10 }]} />
+      <View style={styles.mapArea}>
+        <TrainlyMap
+          style={StyleSheet.absoluteFill}
+          center={center}
+          path={path}
+          pathColor={mapTier.color}
+          markers={mapMarkers}
+          followSmoothly
+          insets={{ top: insets.top + 56, bottom: PANEL_OVERLAP }}
+          offlineHint="Sua corrida está sendo gravada normalmente — distância, tempo, ritmo e o trajeto para publicar como rota. Só o desenho do mapa precisa de internet."
+        />
+        {/* Esfumaçado no topo: o botão de voltar e o selo leem bem sobre qualquer parte do mapa. */}
+        <LinearGradient
+          colors={[withAlpha(colors.background, 0.92), withAlpha(colors.background, 0)]}
+          style={[styles.topFade, { height: insets.top + 96 }]}
+          pointerEvents="none"
+        />
+      </View>
+      <MapTierBadge tierName={mapTier.name} color={mapTier.color} style={[styles.tierBadge, { top: insets.top + 12 }]} />
 
       <PressableScale
         onPress={() => {
@@ -382,13 +392,18 @@ export function RunScreen() {
         hitSlop={10}
         accessibilityRole="button"
         accessibilityLabel="Voltar"
-        style={[styles.backBtn, { top: insets.top + 10, backgroundColor: colors.card, borderColor: colors.border }]}
+        style={[styles.backBtn, { top: insets.top + 8, backgroundColor: colors.card, borderColor: colors.border }]}
       >
         <Ionicons name="chevron-back" size={22} color={colors.textPrimary} />
       </PressableScale>
 
       {/* paddingBottom soma o inset pra "Pausar"/"Finalizar" não ficarem sob a barra de gestos do celular. */}
-      <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border, paddingBottom: 20 + insets.bottom }]}>
+      <View
+        style={[
+          styles.panel,
+          { backgroundColor: colors.card, borderColor: colors.border, paddingBottom: 16 + insets.bottom },
+        ]}
+      >
         <View style={styles.statusRow}>
           <GpsDot color={gpsDotColor} live={phase === 'running'} />
           <Text style={[styles.gpsStatus, { color: colors.textMuted }]} numberOfLines={1}>
@@ -421,13 +436,27 @@ export function RunScreen() {
           />
         )}
 
-        <View style={styles.statsGrid}>
-          <StatTile icon="navigate" label="Distância" value={`${formatKm(distanceKm)} km`} />
-          <StatTile icon="time" label="Tempo" value={formatClock(seconds)} />
-          <StatTile icon="speedometer-outline" label="Ritmo atual" value={`${currentPace}/km`} />
-          <StatTile icon="speedometer-outline" label="Ritmo médio" value={`${paceMinPerKm(distanceKm, seconds)}/km`} />
-          <StatTile icon="trending-up" label="Elevação" value={formatElevation(elevationM)} />
-          <StatTile icon="flag-outline" label="Km completos" value={String(splits.length)} />
+        <View style={styles.heroRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.heroLabel, { color: colors.textMuted }]}>Distância</Text>
+            <Text style={[styles.heroValue, { color: colors.textPrimary }]} numberOfLines={1}>
+              {formatKm(distanceKm)}
+              <Text style={[styles.heroUnit, { color: colors.textMuted }]}> km</Text>
+            </Text>
+          </View>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={[styles.heroLabel, { color: colors.textMuted }]}>Tempo</Text>
+            <Text style={[styles.timeValue, { color: phase === 'paused' ? colors.textMuted : colors.textPrimary }]}>
+              {formatClock(seconds)}
+            </Text>
+          </View>
+        </View>
+
+        <View style={[styles.metricsRow, { borderColor: colors.border }]}>
+          <Metric label="Ritmo atual" value={currentPace} unit="/km" />
+          <Metric label="Ritmo médio" value={paceMinPerKm(distanceKm, seconds)} unit="/km" divider />
+          <Metric label="Elevação" value={formatElevation(elevationM)} divider />
+          <Metric label="Km" value={String(splits.length)} divider />
         </View>
 
         {splits.length > 0 && (
@@ -444,6 +473,8 @@ export function RunScreen() {
         {phase === 'idle' ? (
           <TrainlyButton
             title={startButtonLabel(activityKind)}
+            icon="play"
+            size="lg"
             variant="primary"
             onPress={startTracking}
             loading={saving}
@@ -453,17 +484,35 @@ export function RunScreen() {
             <View style={{ flex: 1 }}>
               <TrainlyButton
                 title={phase === 'paused' ? 'Retomar' : 'Pausar'}
+                icon={phase === 'paused' ? 'play' : 'pause'}
+                size="lg"
                 variant="secondary"
                 onPress={phase === 'paused' ? resumeTracking : pauseTracking}
                 disabled={saving}
               />
             </View>
             <View style={{ flex: 1 }}>
-              <TrainlyButton title="Finalizar" variant="danger" onPress={finishTracking} loading={saving} />
+              <TrainlyButton title="Finalizar" icon="stop" size="lg" variant="danger" onPress={finishTracking} loading={saving} />
             </View>
           </View>
         )}
       </View>
+    </View>
+  );
+}
+
+/** Uma métrica secundária da corrida (ritmo, elevação...), em coluna, com divisória à esquerda. */
+function Metric({ label, value, unit, divider }: { label: string; value: string; unit?: string; divider?: boolean }) {
+  const { colors } = useTheme();
+  return (
+    <View style={[styles.metric, divider && { borderLeftWidth: 1, borderLeftColor: colors.border }]}>
+      <Text style={[styles.metricValue, { color: colors.textPrimary }]} numberOfLines={1} adjustsFontSizeToFit>
+        {value}
+        {unit ? <Text style={[styles.metricUnit, { color: colors.textMuted }]}>{unit}</Text> : null}
+      </Text>
+      <Text style={[styles.metricLabel, { color: colors.textMuted }]} numberOfLines={1}>
+        {label}
+      </Text>
     </View>
   );
 }
@@ -481,32 +530,55 @@ function GpsDot({ color, live }: { color: string; live: boolean }) {
   );
 }
 
+/** Quanto o painel de baixo "entra" por cima do mapa (os cantos arredondados ficam sobre ele). */
+const PANEL_OVERLAP = 26;
+
 const styles = StyleSheet.create({
-  map: { flex: 1 },
+  mapArea: { flex: 1 },
+  topFade: { position: 'absolute', left: 0, right: 0, top: 0 },
   tierBadge: { position: 'absolute', right: 16 },
   backBtn: {
     position: 'absolute',
     left: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
   },
   panel: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    marginTop: -PANEL_OVERLAP,
+    borderTopLeftRadius: PANEL_OVERLAP,
+    borderTopRightRadius: PANEL_OVERLAP,
     borderWidth: 1,
-    padding: 20,
+    borderBottomWidth: 0,
+    paddingHorizontal: 20,
+    paddingTop: 14,
   },
   statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 10, gap: 7 },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   gpsStatus: { fontSize: 12, fontWeight: '600' },
   autoPauseNote: { fontSize: 12, fontWeight: '700', textAlign: 'center', marginBottom: 10 },
-  typeRow: { marginBottom: 16, justifyContent: 'center' },
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
-  splitsRow: { marginBottom: 14 },
+  typeRow: { marginBottom: 14, justifyContent: 'center' },
+  heroRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
+  heroLabel: { fontSize: 11.5, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase' },
+  heroValue: { fontSize: 58, fontWeight: '900', fontStyle: 'italic', lineHeight: 62, fontVariant: ['tabular-nums'] },
+  heroUnit: { fontSize: 22, fontWeight: '800', fontStyle: 'normal' },
+  timeValue: { fontSize: 36, fontWeight: '900', lineHeight: 42, marginBottom: 4, fontVariant: ['tabular-nums'] },
+  metricsRow: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    paddingVertical: 12,
+    marginTop: 10,
+    marginBottom: 14,
+  },
+  metric: { flex: 1, alignItems: 'center', paddingHorizontal: 4 },
+  metricValue: { fontSize: 22, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  metricUnit: { fontSize: 16, fontWeight: '800' },
+  metricLabel: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+  splitsRow: { marginBottom: 14, flexGrow: 0 },
   splitChip: {
     borderWidth: 1,
     borderRadius: 12,
@@ -516,7 +588,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minWidth: 64,
   },
-  splitKm: { fontSize: 13, fontWeight: '800' },
+  splitKm: { fontSize: 16, fontWeight: '800' },
   splitPace: { fontSize: 11, fontWeight: '600', marginTop: 2 },
   actionsRow: { flexDirection: 'row', gap: 12 },
 });

@@ -235,7 +235,7 @@ function MiniStat({ label, value, colors }: { label: string; value: string; colo
 
 const styles = StyleSheet.create({
   list: { padding: 20, paddingBottom: 130 },
-  mapWrap: { height: 200, borderRadius: 24, overflow: 'hidden', borderWidth: 1, marginBottom: 20 },
+  mapWrap: { height: 240, borderRadius: 22, overflow: 'hidden', borderWidth: 1, marginBottom: 20 },
   map: { flex: 1 },
   filterRow: { marginBottom: 16 },
   locatingHint: { fontSize: 12, fontWeight: '600', marginTop: -8, marginBottom: 12 },

@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 import { boundsOf, LatLon, TrainlyMap, TrainlyMarker } from '../components/TrainlyMap';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useRouteDetail, useRoutes } from '../hooks/useRoutes';
@@ -44,6 +45,7 @@ export function RouteDetailScreen() {
  */
 function RouteDetail({ route }: { route: TrainlyRoute }) {
   const { colors, colorBlindMode } = useTheme();
+  const insets = useSafeAreaInsets();
   const { profile } = useAuth();
   const { deleteRoute } = useRoutes();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -99,11 +101,12 @@ function RouteDetail({ route }: { route: TrainlyRoute }) {
         path={coords}
         pathColor={mapTier.color}
         markers={markers}
+        insets={{ bottom: 28 }}
         offlineHint="O trajeto desta rota está salvo — os dados abaixo são dela. Só o desenho do mapa precisa de internet."
       />
       <MapTierBadge tierName={mapTier.name} color={mapTier.color} style={styles.tierBadge} />
 
-      <FadeIn style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <FadeIn style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border, paddingBottom: 20 + insets.bottom }]}>
         <Text style={[styles.name, { color: colors.textPrimary }]}>{route.name}</Text>
         <Text style={[styles.creator, { color: colors.textMuted }]}>
           {route.type} de {route.creator_name}
@@ -148,7 +151,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   map: { flex: 1 },
   tierBadge: { position: 'absolute', top: 14, left: 14 },
-  panel: { borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, padding: 20 },
+  panel: { marginTop: -28, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderBottomWidth: 0, padding: 20 },
   name: { fontSize: 19, fontWeight: '900' },
   creator: { fontSize: 12.5, fontWeight: '600', marginTop: 4, marginBottom: 16 },
   statsRow: { flexDirection: 'row', gap: 8 },

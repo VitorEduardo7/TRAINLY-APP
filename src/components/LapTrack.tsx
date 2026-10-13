@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { useTheme } from '../theme/ThemeContext';
-import { prefersReducedMotion } from './Motion';
+import { prefersReducedMotion, useReducedMotion } from './Motion';
 
 interface Props {
   /** Largura disponível (a altura sai proporcional). */
@@ -14,7 +14,7 @@ interface Props {
 }
 
 /** Geometria de uma pista "estádio" (retas + duas curvas) recuada `inset` px da borda. */
-function stadium(w: number, h: number, inset: number) {
+export function stadium(w: number, h: number, inset: number) {
   const r = (h - inset * 2) / 2;
   const left = inset + r;
   const right = w - inset - r;
@@ -131,4 +131,117 @@ export function LapTrack({ width, progress, children }: Props) {
 
 const styles = StyleSheet.create({
   infield: { alignItems: 'center', justifyContent: 'center' },
+  dot: { position: 'absolute', left: 0, top: 0 },
+  head: { borderWidth: 2 },
 });
+
+interface LoopProps {
+  /** Largura disponível (a altura sai proporcional). */
+  width: number;
+  /** Quanto tempo o "atleta" leva pra dar uma volta, em ms. */
+  lapMs?: number;
+  /** Conteúdo no gramado do meio (ex: a logo). */
+  children?: React.ReactNode;
+}
+
+/** Quantos pontos da pista viram "quadros-chave" do movimento (mais = curva mais lisa). */
+const LOOP_SAMPLES = 96;
+/** O rastro dourado atrás do atleta: tamanho e opacidade de cada ponto, do mais perto ao mais longe. */
+const TRAIL = Array.from({ length: 12 }, (_, i) => ({
+  gap: (i + 1) * 0.0105,
+  size: Math.max(3, 9 - i * 0.55),
+  opacity: Math.max(0.08, 0.9 - i * 0.075),
+}));
+
+/**
+ * A mesma pista do Início, só que viva: um atleta (ponto azul) dando voltas
+ * sem parar, com um rastro dourado — a vitrine da tela de entrada.
+ *
+ * Diferente do `LapTrack` (que redesenha o SVG a cada quadro por uns
+ * instantes), aqui a volta é infinita, então o movimento roda INTEIRO no
+ * thread nativo: o caminho da pista é amostrado em ~100 pontos e vira uma
+ * interpolação de `translateX/translateY` com `useNativeDriver`. O
+ * JavaScript não faz nada por quadro — digitar no formulário logo abaixo
+ * continua leve, mesmo num celular/emulador mais fraco.
+ */
+export function TrackLoop({ width, lapMs = 5600, children }: LoopProps) {
+  const { colors } = useTheme();
+  const reduced = useReducedMotion();
+  const height = Math.round(Math.min(200, width * 0.52));
+  const band = 30;
+  const t = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (reduced) {
+      t.setValue(0.62);
+      return;
+    }
+    t.setValue(0);
+    const anim = Animated.loop(
+      Animated.timing(t, { toValue: 1, duration: lapMs, easing: Easing.linear, useNativeDriver: true }),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [t, reduced, lapMs]);
+
+  const geo = useMemo(() => {
+    const outer = stadium(width, height, 1);
+    const lane1 = stadium(width, height, 1 + band / 3);
+    const lane2 = stadium(width, height, 1 + (band * 2) / 3);
+    const inner = stadium(width, height, 1 + band);
+    const run = stadium(width, height, 1 + band / 2);
+    const inputRange: number[] = [];
+    const xs: number[] = [];
+    const ys: number[] = [];
+    for (let i = 0; i <= LOOP_SAMPLES; i++) {
+      const p = run.pointAt((run.length * i) / LOOP_SAMPLES);
+      inputRange.push(i / LOOP_SAMPLES);
+      xs.push(p.x);
+      ys.push(p.y);
+    }
+    return { outer, lane1, lane2, inner, run, inputRange, xs, ys };
+  }, [width, height]);
+
+  /** Um ponto que anda pela pista `gap` (fração da volta) atrás do atleta. */
+  const dotStyle = (gap: number, size: number) => {
+    const progress = gap === 0 ? t : Animated.modulo(Animated.add(t, 1 - gap), 1);
+    return {
+      width: size,
+      height: size,
+      borderRadius: size / 2,
+      transform: [
+        { translateX: progress.interpolate({ inputRange: geo.inputRange, outputRange: geo.xs.map((x) => x - size / 2) }) },
+        { translateY: progress.interpolate({ inputRange: geo.inputRange, outputRange: geo.ys.map((y) => y - size / 2) }) },
+      ],
+    };
+  };
+
+  return (
+    <View style={{ width, height }}>
+      <Svg width={width} height={height}>
+        <Path d={geo.outer.d} fill={colors.card} stroke={colors.border} strokeWidth={1} />
+        <Path d={geo.lane1.d} fill="none" stroke={colors.border} strokeWidth={1} />
+        <Path d={geo.lane2.d} fill="none" stroke={colors.border} strokeWidth={1} />
+        <Path d={geo.inner.d} fill={colors.background} stroke={colors.border} strokeWidth={1} />
+        {/* A volta "fantasma", bem fraquinha: sugere o caminho do rastro. */}
+        <Path d={geo.run.d} fill="none" stroke={colors.gold} strokeOpacity={0.12} strokeWidth={4} />
+        <Line x1={width / 2} y1={height - 1 - band} x2={width / 2} y2={height - 1} stroke={colors.textPrimary} strokeWidth={2} />
+      </Svg>
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        {[...TRAIL].reverse().map((d) => (
+          <Animated.View
+            key={d.gap}
+            style={[styles.dot, { backgroundColor: colors.gold, opacity: d.opacity }, dotStyle(d.gap, d.size)]}
+          />
+        ))}
+        <Animated.View style={[styles.dot, { backgroundColor: colors.primary, opacity: 0.25 }, dotStyle(0, 24)]} />
+        <Animated.View
+          style={[styles.dot, styles.head, { backgroundColor: colors.primary, borderColor: colors.textPrimary }, dotStyle(0, 14)]}
+        />
+      </View>
+      <View style={[StyleSheet.absoluteFill, styles.infield, { padding: band + 6 }]} pointerEvents="box-none">
+        {children}
+      </View>
+    </View>
+  );
+}

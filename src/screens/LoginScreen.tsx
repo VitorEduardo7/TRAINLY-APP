@@ -1,23 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  Alert,
-  Animated,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { Alert, Animated, Image, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
+import { withAlpha } from '../theme/colors';
 import { useAuth } from '../hooks/useAuth';
 import { TrainlyInput } from '../components/TrainlyInput';
 import { TrainlyButton } from '../components/TrainlyButton';
 import { FadeIn, prefersReducedMotion } from '../components/Motion';
 import { Text } from '../components/Typography';
+import { TrackLoop } from '../components/LapTrack';
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { selection } from '../lib/haptics';
+import { describeConnectionProblem, diagnoseConnection } from '../lib/connection';
+import { SUPABASE_CONFIGURED } from '../lib/supabaseConfig';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -41,6 +37,24 @@ function translateAuthError(err: any): string {
   if (lower.includes('network') || lower.includes('fetch')) return 'Não foi possível conectar — confira sua internet.';
   if (lower.includes('rate limit')) return 'Muitas tentativas seguidas — espere um pouco e tente de novo.';
   return msg || 'Não foi possível continuar.';
+}
+
+/**
+ * Falha de rede/servidor (o pedido nem chegou ao Supabase, ou voltou sem uma
+ * resposta de login válida) — diferente de "senha errada", que é resposta
+ * normal do servidor.
+ */
+function isConnectionError(err: any): boolean {
+  const name = String(err?.name ?? '');
+  const msg = String(err?.message ?? '').toLowerCase();
+  return (
+    name === 'AuthRetryableFetchError' ||
+    name === 'AuthUnknownError' ||
+    err?.status === 540 ||
+    msg.includes('network') ||
+    msg.includes('fetch') ||
+    msg.includes('json')
+  );
 }
 
 export function LoginScreen() {
@@ -82,6 +96,10 @@ export function LoginScreen() {
         return;
       }
     }
+    if (!SUPABASE_CONFIGURED) {
+      Alert.alert('Trainly', describeConnectionProblem('not-configured'));
+      return;
+    }
     setLoading(true);
     try {
       if (mode === 'login') {
@@ -91,99 +109,136 @@ export function LoginScreen() {
         Alert.alert('Trainly', 'Conta criada! Verifique seu e-mail se a confirmação estiver ativa.');
       }
     } catch (err: any) {
-      Alert.alert('Trainly', translateAuthError(err));
+      // Erro de conexão: descobre a causa de verdade (sem .env, banco
+      // pausado, sem internet...) em vez do genérico "confira sua internet".
+      if (isConnectionError(err)) {
+        const problem = await diagnoseConnection();
+        Alert.alert('Trainly', describeConnectionProblem(problem));
+      } else {
+        Alert.alert('Trainly', translateAuthError(err));
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const dark = theme === 'dark';
+  const { width: windowWidth } = useWindowDimensions();
+  // Em tablet/tela larga o conteúdo fica numa coluna central, não esticado.
+  const columnWidth = Math.min(windowWidth, 460) - 48;
+  const register = mode === 'register';
 
   return (
     // Tela fora da tab navigator — não tem tab bar embaixo, então cobre topo e fundo.
-    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: colors.background }}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <FadeIn style={styles.hero} offset={20} duration={600}>
-            <Image source={GLOW} style={[styles.glow, { opacity: dark ? 0.55 : 0.22 }]} resizeMode="contain" />
-            <Image source={dark ? MARK_ON_DARK : MARK_ON_LIGHT} style={styles.mark} resizeMode="contain" />
-            <Image source={dark ? WORD_ON_DARK : WORD_ON_LIGHT} style={styles.wordmark} resizeMode="contain" />
-            <Text style={[styles.tagline, { color: colors.textMuted }]}>Treine. Suba de Nível.</Text>
-          </FadeIn>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <Image source={GLOW} style={[styles.glow, { opacity: dark ? 0.5 : 0.18 }]} resizeMode="contain" />
+      <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }}>
+        <KeyboardAwareScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          <View style={{ width: columnWidth, alignSelf: 'center' }}>
+            <FadeIn style={styles.hero} offset={16} duration={600}>
+              <TrackLoop width={columnWidth}>
+                <Image source={dark ? MARK_ON_DARK : MARK_ON_LIGHT} style={styles.mark} resizeMode="contain" />
+                <Image source={dark ? WORD_ON_DARK : WORD_ON_LIGHT} style={styles.wordmark} resizeMode="contain" />
+              </TrackLoop>
+            </FadeIn>
 
-          <FadeIn delay={120}>
-            <ModeSwitch mode={mode} onChange={switchMode} />
-          </FadeIn>
+            <FadeIn delay={90} offset={10}>
+              <Text style={[styles.headline, { color: colors.textPrimary }]}>
+                Treine. <Text style={[styles.headline, { color: colors.goldText }]}>Suba de nível.</Text>
+              </Text>
+              <Text style={[styles.subhead, { color: colors.textMuted }]}>
+                Cada treino vira XP: suba de patente, mantenha a sequência e dispute com os amigos.
+              </Text>
+            </FadeIn>
 
-          <FadeIn delay={200}>
-            {mode === 'register' && (
-              <FadeIn key="name" offset={8} duration={300}>
+            <FadeIn delay={170} offset={12}>
+              <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <ModeSwitch mode={mode} onChange={switchMode} />
+
+                {!SUPABASE_CONFIGURED && (
+                  <View style={[styles.setupWarn, { borderColor: withAlpha(colors.danger, 0.5), backgroundColor: withAlpha(colors.danger, 0.1) }]}>
+                    <Ionicons name="warning-outline" size={18} color={colors.danger} />
+                    <Text style={[styles.setupWarnText, { color: colors.textPrimary }]}>
+                      Falta o arquivo <Text style={{ fontWeight: '700' }}>.env</Text> com os dados do Supabase nesta pasta do
+                      projeto — sem ele o app não acha o banco de dados. Veja o README, Passo 1.
+                    </Text>
+                  </View>
+                )}
+
+                {register && (
+                  <FadeIn key="name" offset={8} duration={300}>
+                    <TrainlyInput
+                      label="Nome completo"
+                      placeholder="Ex: Miguel Bizerra"
+                      value={name}
+                      onChangeText={setName}
+                      autoCapitalize="words"
+                      autoComplete="name"
+                      textContentType="name"
+                      icon="person-outline"
+                    />
+                  </FadeIn>
+                )}
+
                 <TrainlyInput
-                  label="Nome completo"
-                  placeholder="Ex: Miguel Bizerra"
-                  value={name}
-                  onChangeText={setName}
-                  autoCapitalize="words"
-                  icon="person-outline"
+                  label="E-mail"
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                  icon="mail-outline"
                 />
-              </FadeIn>
-            )}
 
-            <TrainlyInput
-              label="E-mail"
-              placeholder="seu@email.com"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              icon="mail-outline"
-            />
-
-            <TrainlyInput
-              label="Senha"
-              placeholder="••••••••"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              icon="lock-closed-outline"
-            />
-
-            {mode === 'register' && (
-              <FadeIn key="confirm" offset={8} duration={300}>
                 <TrainlyInput
-                  label="Confirmar senha"
-                  placeholder="••••••••"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
+                  label="Senha"
+                  placeholder={register ? 'Mínimo 6 caracteres' : '••••••••'}
+                  value={password}
+                  onChangeText={setPassword}
                   secureTextEntry
-                  icon="shield-checkmark-outline"
+                  returnKeyType={register ? 'next' : 'go'}
+                  onSubmitEditing={register ? undefined : handleSubmit}
+                  icon="lock-closed-outline"
                 />
-              </FadeIn>
-            )}
-          </FadeIn>
 
-          <FadeIn delay={260} style={{ marginTop: 6 }}>
-            <TrainlyButton
-              title={mode === 'login' ? 'Entrar na minha conta' : 'Criar minha conta grátis'}
-              icon={mode === 'login' ? 'log-in-outline' : 'person-add-outline'}
-              onPress={handleSubmit}
-              loading={loading}
-            />
-          </FadeIn>
+                {register && (
+                  <FadeIn key="confirm" offset={8} duration={300}>
+                    <TrainlyInput
+                      label="Confirmar senha"
+                      placeholder="Repita a senha"
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      secureTextEntry
+                      returnKeyType="go"
+                      onSubmitEditing={handleSubmit}
+                      icon="shield-checkmark-outline"
+                    />
+                  </FadeIn>
+                )}
 
-          <Text style={[styles.footer, { color: colors.textMuted }]}>
-            {mode === 'login' ? 'Ainda não tem conta? ' : 'Já tem uma conta? '}
-            <Text
-              onPress={() => switchMode(mode === 'login' ? 'register' : 'login')}
-              style={{ color: colors.primary, fontWeight: '700' }}
-            >
-              {mode === 'login' ? 'Cadastre-se' : 'Entrar'}
+                <View style={{ marginTop: 4 }}>
+                  <TrainlyButton
+                    title={register ? 'Criar minha conta grátis' : 'Entrar na minha conta'}
+                    icon={register ? 'person-add-outline' : 'arrow-forward'}
+                    size="lg"
+                    onPress={handleSubmit}
+                    loading={loading}
+                  />
+                </View>
+              </View>
+            </FadeIn>
+
+            <Text style={[styles.footer, { color: colors.textMuted }]}>
+              {register ? 'Já tem uma conta? ' : 'Ainda não tem conta? '}
+              <Text onPress={() => switchMode(register ? 'login' : 'register')} style={{ color: colors.primary, fontWeight: '700' }}>
+                {register ? 'Entrar' : 'Cadastre-se'}
+              </Text>
             </Text>
-          </Text>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          </View>
+        </KeyboardAwareScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
@@ -216,7 +271,8 @@ function ModeSwitch({ mode, onChange }: { mode: 'login' | 'register'; onChange: 
             styles.switchThumb,
             {
               width: segment,
-              backgroundColor: theme === 'dark' ? colors.card : '#ffffff',
+              backgroundColor: withAlpha(colors.primary, theme === 'dark' ? 0.22 : 0.12),
+              borderColor: withAlpha(colors.primary, 0.55),
               transform: [{ translateX: x.interpolate({ inputRange: [0, 1], outputRange: [0, segment] }) }],
             },
           ]}
@@ -243,26 +299,26 @@ function ModeSwitch({ mode, onChange }: { mode: 'login' | 'register'; onChange: 
 }
 
 const styles = StyleSheet.create({
-  scroll: { flexGrow: 1, padding: 24, justifyContent: 'center' },
-  hero: { alignItems: 'center', marginBottom: 34 },
-  glow: { position: 'absolute', width: 300, height: 300, top: -70 },
-  mark: { width: 150, height: 100 },
-  wordmark: { width: 170, height: 21, marginTop: 14 },
-  tagline: { fontSize: 14.5, marginTop: 12, fontWeight: '600', letterSpacing: 0.3 },
-  switch: { flexDirection: 'row', padding: 4, borderRadius: 14, borderWidth: 1, marginBottom: 22 },
+  scroll: { flexGrow: 1, paddingVertical: 20, justifyContent: 'center' },
+  glow: { position: 'absolute', alignSelf: 'center', width: 520, height: 520, top: -150 },
+  hero: { alignItems: 'center', marginBottom: 22 },
+  mark: { width: 96, height: 64 },
+  wordmark: { width: 118, height: 15, marginTop: 8 },
+  headline: { fontSize: 34, fontWeight: '900', fontStyle: 'italic', textAlign: 'center', lineHeight: 38 },
+  subhead: { fontSize: 14, fontWeight: '500', textAlign: 'center', marginTop: 8, lineHeight: 20, paddingHorizontal: 8 },
+  formCard: { borderWidth: 1, borderRadius: 22, padding: 16, paddingTop: 16, marginTop: 24 },
+  switch: { flexDirection: 'row', padding: 4, borderRadius: 14, borderWidth: 1, marginBottom: 18 },
   switchThumb: {
     position: 'absolute',
     top: 4,
     bottom: 4,
     left: 4,
     borderRadius: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    borderWidth: 1,
   },
-  segment: { flex: 1, paddingVertical: 11, alignItems: 'center' },
-  segmentText: { fontSize: 14.5, fontWeight: '700' },
-  footer: { textAlign: 'center', marginTop: 22, fontSize: 13.5, fontWeight: '500' },
+  segment: { flex: 1, paddingVertical: 10, alignItems: 'center' },
+  segmentText: { fontSize: 17, fontWeight: '800', letterSpacing: 0.3 },
+  footer: { textAlign: 'center', marginTop: 20, fontSize: 13.5, fontWeight: '500' },
+  setupWarn: { flexDirection: 'row', gap: 10, borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 16 },
+  setupWarnText: { flex: 1, fontSize: 13, fontWeight: '500', lineHeight: 18 },
 });

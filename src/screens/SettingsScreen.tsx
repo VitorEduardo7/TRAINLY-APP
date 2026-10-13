@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Alert, StyleSheet, Switch, View } from 'react-native';
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { useTheme, FontScale } from '../theme/ThemeContext';
 import { ColorBlindMode } from '../theme/colors';
 import { useAuth } from '../hooks/useAuth';
@@ -146,7 +147,7 @@ export function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.content}>
+    <KeyboardAwareScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.content}>
       <FadeIn>
         <Card>
           <SectionTitle title="Conta" />
@@ -329,7 +330,7 @@ export function SettingsScreen() {
           <TrainlyButton title="Sair da conta" variant="danger" onPress={handleLogout} />
         </View>
       </FadeIn>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

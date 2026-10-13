@@ -3,11 +3,8 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
@@ -28,6 +25,7 @@ import { SportGlyph, sportColor } from '../components/SportIcon';
 import { FadeIn, prefersReducedMotion } from '../components/Motion';
 import { SkeletonCard } from '../components/Skeleton';
 import { EmptyState } from '../components/EmptyState';
+import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { Text, TextInput } from '../components/Typography';
 import { selection, tapLight, warning } from '../lib/haptics';
 import { formatClock, formatKm, paceMinPerKm } from '../lib/geo';
@@ -110,126 +108,121 @@ export function FriendsScreen() {
     // Sem isso, o título "Amigos" ficava embaixo da barra de status/notch no
     // iPhone: era a única aba que não tinha SafeAreaView.
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.background }}>
-      <KeyboardAvoidingView
-        style={{ flex: 1, backgroundColor: colors.background }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <KeyboardAwareScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={() => {
+              reloadFollowing();
+              reloadFeed();
+            }}
+            tintColor={colors.primary}
+          />
+        }
       >
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-          refreshControl={
-            <RefreshControl
-              refreshing={loading}
-              onRefresh={() => {
-                reloadFollowing();
-                reloadFeed();
-              }}
-              tintColor={colors.primary}
-            />
-          }
+        <ScreenHeader wash="friends" title="Amigos" />
+
+        <View
+          style={[
+            styles.searchBox,
+            { backgroundColor: colors.card, borderColor: searchFocused ? SCREEN_WASH.friends[0] : colors.border },
+          ]}
         >
-          <ScreenHeader wash="friends" title="Amigos" />
+          <Ionicons name="search" size={18} color={searchFocused ? SCREEN_WASH.friends[0] : colors.textMuted} />
+          <TextInput
+            placeholder="Buscar atletas pelo nome..."
+            placeholderTextColor={colors.textMuted}
+            value={query}
+            onChangeText={setQuery}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            returnKeyType="search"
+            style={[styles.searchInput, { color: colors.textPrimary }]}
+          />
+          {query.length > 0 && (
+            <Pressable onPress={() => setQuery('')} hitSlop={10} accessibilityLabel="Limpar busca">
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+            </Pressable>
+          )}
+        </View>
 
-          <View
-            style={[
-              styles.searchBox,
-              { backgroundColor: colors.card, borderColor: searchFocused ? SCREEN_WASH.friends[0] : colors.border },
-            ]}
-          >
-            <Ionicons name="search" size={18} color={searchFocused ? SCREEN_WASH.friends[0] : colors.textMuted} />
-            <TextInput
-              placeholder="Buscar atletas pelo nome..."
-              placeholderTextColor={colors.textMuted}
-              value={query}
-              onChangeText={setQuery}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-              returnKeyType="search"
-              style={[styles.searchInput, { color: colors.textPrimary }]}
-            />
-            {query.length > 0 && (
-              <Pressable onPress={() => setQuery('')} hitSlop={10} accessibilityLabel="Limpar busca">
-                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-              </Pressable>
+        {query.trim().length > 0 && (
+          <View style={{ marginBottom: 14 }}>
+            {searching && <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />}
+            {!searching && results.length === 0 && (
+              <EmptyState compact icon="person-outline" title="Ninguém encontrado" message="Confira o nome e tente de novo." />
             )}
+            {results.map((person, i) => (
+              <FadeIn key={person.id} delay={Math.min(i, 5) * 40} offset={8}>
+                <Card style={styles.personCard}>
+                  {/* Toque no avatar/nome abre o perfil; o botão de seguir fica
+                      fora do Pressable pra os dois toques não se atrapalharem. */}
+                  <Pressable
+                    onPress={() => openProfile(person.id, person.name)}
+                    style={({ pressed }) => [styles.personTap, pressed && { opacity: 0.6 }]}
+                  >
+                    <Avatar name={person.name} size={42} uri={person.avatar_url} />
+                    <Text style={[styles.personName, { color: colors.textPrimary }]} numberOfLines={1}>
+                      {person.name}
+                    </Text>
+                  </Pressable>
+                  <TrainlyButton
+                    size="sm"
+                    title={person.isFollowing ? 'Seguindo' : 'Seguir'}
+                    icon={person.isFollowing ? 'checkmark' : 'person-add-outline'}
+                    variant={person.isFollowing ? 'secondary' : 'primary'}
+                    onPress={() => handleToggleFollow(person)}
+                    loading={busyId === person.id}
+                  />
+                </Card>
+              </FadeIn>
+            ))}
           </View>
+        )}
 
-          {query.trim().length > 0 && (
-            <View style={{ marginBottom: 14 }}>
-              {searching && <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />}
-              {!searching && results.length === 0 && (
-                <EmptyState compact icon="person-outline" title="Ninguém encontrado" message="Confira o nome e tente de novo." />
-              )}
-              {results.map((person, i) => (
-                <FadeIn key={person.id} delay={Math.min(i, 5) * 40} offset={8}>
-                  <Card style={styles.personCard}>
-                    {/* Toque no avatar/nome abre o perfil; o botão de seguir fica
-                        fora do Pressable pra os dois toques não se atrapalharem. */}
-                    <Pressable
-                      onPress={() => openProfile(person.id, person.name)}
-                      style={({ pressed }) => [styles.personTap, pressed && { opacity: 0.6 }]}
-                    >
-                      <Avatar name={person.name} size={42} uri={person.avatar_url} />
-                      <Text style={[styles.personName, { color: colors.textPrimary }]} numberOfLines={1}>
-                        {person.name}
-                      </Text>
-                    </Pressable>
-                    <TrainlyButton
-                      size="sm"
-                      title={person.isFollowing ? 'Seguindo' : 'Seguir'}
-                      icon={person.isFollowing ? 'checkmark' : 'person-add-outline'}
-                      variant={person.isFollowing ? 'secondary' : 'primary'}
-                      onPress={() => handleToggleFollow(person)}
-                      loading={busyId === person.id}
-                    />
-                  </Card>
-                </FadeIn>
-              ))}
-            </View>
-          )}
+        <SectionTitle title="Feed de amigos" />
 
-          <SectionTitle title="Feed de amigos" />
+        {firstLoad && (
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
+        )}
 
-          {firstLoad && (
-            <>
-              <SkeletonCard />
-              <SkeletonCard />
-            </>
-          )}
+        {!loading && feed.length === 0 && (
+          <EmptyState
+            icon={error ? 'cloud-offline-outline' : 'people-outline'}
+            title={
+              error
+                ? 'Não foi possível carregar o feed'
+                : followingIds.size === 0
+                  ? 'Seu feed está vazio'
+                  : 'Nada novo por aqui'
+            }
+            message={
+              error
+                ? 'Puxe a tela pra baixo pra tentar de novo.'
+                : followingIds.size === 0
+                  ? 'Você ainda não segue ninguém. Busque atletas pelo nome acima pra começar.'
+                  : 'Ninguém que você segue registrou atividade ainda.'
+            }
+          />
+        )}
 
-          {!loading && feed.length === 0 && (
-            <EmptyState
-              icon={error ? 'cloud-offline-outline' : 'people-outline'}
-              title={
-                error
-                  ? 'Não foi possível carregar o feed'
-                  : followingIds.size === 0
-                    ? 'Seu feed está vazio'
-                    : 'Nada novo por aqui'
-              }
-              message={
-                error
-                  ? 'Puxe a tela pra baixo pra tentar de novo.'
-                  : followingIds.size === 0
-                    ? 'Você ainda não segue ninguém. Busque atletas pelo nome acima pra começar.'
-                    : 'Ninguém que você segue registrou atividade ainda.'
-              }
+        {feed.map((activity, i) => (
+          <FadeIn key={activity.id} delay={Math.min(i, 4) * 60}>
+            <FeedCard
+              activity={activity}
+              currentUserId={profile?.id}
+              onToggleLike={() => toggleLike(activity)}
+              onOpenProfile={openProfile}
             />
-          )}
-
-          {feed.map((activity, i) => (
-            <FadeIn key={activity.id} delay={Math.min(i, 4) * 60}>
-              <FeedCard
-                activity={activity}
-                currentUserId={profile?.id}
-                onToggleLike={() => toggleLike(activity)}
-                onOpenProfile={openProfile}
-              />
-            </FadeIn>
-          ))}
-        </ScrollView>
-      </KeyboardAvoidingView>
+          </FadeIn>
+        ))}
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

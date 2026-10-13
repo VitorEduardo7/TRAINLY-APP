@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, TextInputProps, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { Text, TextInput } from './Typography';
+import { useFormSheetFocus } from './FormSheet';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -17,6 +18,7 @@ interface Props extends TextInputProps {
 export function TrainlyInput({ label, labelRight, icon, style, secureTextEntry, onFocus, onBlur, multiline, ...rest }: Props) {
   const { colors } = useTheme();
   const [focused, setFocused] = useState(false);
+  const notifySheet = useFormSheetFocus();
   // Campo de senha ganha o "olhinho" pra mostrar/esconder o que foi digitado.
   const [hidden, setHidden] = useState(!!secureTextEntry);
 
@@ -43,14 +45,21 @@ export function TrainlyInput({ label, labelRight, icon, style, secureTextEntry, 
         ) : null}
         <TextInput
           placeholderTextColor={colors.textMuted}
+          // Campo de senha: o celular nunca pode "ajudar" mudando o que foi
+          // digitado. Com o olhinho aberto o campo vira texto comum, e aí o
+          // iPhone/Android passavam a pôr a 1ª letra em maiúscula e a
+          // autocorrigir — a senha salva/enviada ficava diferente da digitada.
+          {...(secureTextEntry ? { autoCapitalize: 'none' as const, autoCorrect: false, spellCheck: false } : null)}
           secureTextEntry={!!secureTextEntry && hidden}
           multiline={multiline}
           onFocus={(e) => {
             setFocused(true);
+            notifySheet?.(true);
             onFocus?.(e);
           }}
           onBlur={(e) => {
             setFocused(false);
+            notifySheet?.(false);
             onBlur?.(e);
           }}
           style={[

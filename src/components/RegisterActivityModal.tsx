@@ -1,18 +1,10 @@
 import React, { useState } from 'react';
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
 import { TrainlyInput } from './TrainlyInput';
 import { TrainlyButton } from './TrainlyButton';
 import { ChipSelector } from './ChipSelector';
+import { FormSheet } from './FormSheet';
 import { Text } from './Typography';
 import { success } from '../lib/haptics';
 import { maskDateInput } from '../lib/textMask';
@@ -47,7 +39,6 @@ interface Props {
 
 export function RegisterActivityModal({ visible, onClose, onSave }: Props) {
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const [type, setType] = useState<ActivityType>('Corrida');
   const [title, setTitle] = useState('');
   const [distance, setDistance] = useState('');
@@ -100,9 +91,11 @@ export function RegisterActivityModal({ visible, onClose, onSave }: Props) {
         date: trimmedDate === todayLocalISO() ? undefined : trimmedDate,
       });
       success();
-      Alert.alert('Trainly', `Atividade salva! Você ganhou ${xp} XP.`);
       reset();
       onClose();
+      // Espera a gaveta fechar: no iOS um alerta aberto junto com o <Modal>
+      // some com ele, sem a pessoa ver.
+      setTimeout(() => Alert.alert('Trainly', `Atividade salva! Você ganhou ${xp} XP.`), 400);
     } catch (err: any) {
       Alert.alert('Trainly', err.message ?? 'Não foi possível salvar.');
     } finally {
@@ -111,105 +104,89 @@ export function RegisterActivityModal({ visible, onClose, onSave }: Props) {
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        {/* paddingBottom soma o inset pra os botões não ficarem sob a barra de gestos. */}
-        <View style={[styles.sheet, { backgroundColor: colors.card, paddingBottom: 22 + insets.bottom }]}>
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <View style={[styles.handle, { backgroundColor: colors.border }]} />
-            <Text style={[styles.title, { color: colors.textPrimary }]}>Registrar atividade</Text>
+    <FormSheet
+      visible={visible}
+      onClose={onClose}
+      title="Registrar atividade"
+      subtitle="Um treino feito sem o GPS do app — ele também vale XP."
+      icon="add"
+      footer={<TrainlyButton title="Salvar atividade" icon="checkmark" onPress={handleSave} loading={saving} />}
+    >
+      <Text style={[styles.label, { color: colors.textMuted }]}>Tipo</Text>
+      <ChipSelector options={TYPES} value={type} onChange={setType} style={styles.typeRow} />
 
-            <Text style={[styles.label, { color: colors.textMuted }]}>Tipo</Text>
-            <ChipSelector options={TYPES} value={type} onChange={setType} style={styles.typeRow} />
-
-            <TrainlyInput
-              label="Título / legenda (opcional)"
-              placeholder="Ex: Corrida matinal no parque"
-              value={title}
-              onChangeText={setTitle}
-            />
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <TrainlyInput
-                  label="Distância (km)"
-                  placeholder="10.0"
-                  keyboardType="decimal-pad"
-                  value={distance}
-                  onChangeText={setDistance}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <TrainlyInput
-                  label="Duração (min)"
-                  placeholder="45"
-                  keyboardType="decimal-pad"
-                  value={duration}
-                  onChangeText={setDuration}
-                />
-              </View>
-            </View>
-
-            <TrainlyInput
-              label="Data (AAAA-MM-DD)"
-              labelRight={
-                date !== todayLocalISO() ? (
-                  <Text onPress={() => setDate(todayLocalISO())} style={[styles.todayLink, { color: colors.primary }]}>
-                    Usar hoje
-                  </Text>
-                ) : undefined
-              }
-              placeholder={todayLocalISO()}
-              value={date}
-              onChangeText={(text) => setDate(maskDateInput(text, date))}
-              keyboardType="number-pad"
-              maxLength={10}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <TrainlyInput
-                  label="FC (bpm, opcional)"
-                  placeholder="150"
-                  keyboardType="number-pad"
-                  value={heartRate}
-                  onChangeText={setHeartRate}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <TrainlyInput
-                  label="Elevação (m, opcional)"
-                  placeholder="30"
-                  keyboardType="number-pad"
-                  value={elevation}
-                  onChangeText={setElevation}
-                />
-              </View>
-            </View>
-
-            <View style={styles.actions}>
-              <View style={{ flex: 1 }}>
-                <TrainlyButton title="Cancelar" variant="secondary" onPress={onClose} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <TrainlyButton title="Salvar" onPress={handleSave} loading={saving} />
-              </View>
-            </View>
-          </ScrollView>
+      <TrainlyInput
+        label="Título / legenda (opcional)"
+        placeholder="Ex: Corrida matinal no parque"
+        value={title}
+        onChangeText={setTitle}
+        returnKeyType="next"
+      />
+      <View style={styles.row}>
+        <View style={{ flex: 1 }}>
+          <TrainlyInput
+            label="Distância (km)"
+            placeholder="10.0"
+            keyboardType="decimal-pad"
+            value={distance}
+            onChangeText={setDistance}
+          />
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+        <View style={{ flex: 1 }}>
+          <TrainlyInput
+            label="Duração (min)"
+            placeholder="45"
+            keyboardType="decimal-pad"
+            value={duration}
+            onChangeText={setDuration}
+          />
+        </View>
+      </View>
+
+      <TrainlyInput
+        label="Data (AAAA-MM-DD)"
+        labelRight={
+          date !== todayLocalISO() ? (
+            <Text onPress={() => setDate(todayLocalISO())} style={[styles.todayLink, { color: colors.primary }]}>
+              Usar hoje
+            </Text>
+          ) : undefined
+        }
+        placeholder={todayLocalISO()}
+        value={date}
+        onChangeText={(text) => setDate(maskDateInput(text, date))}
+        keyboardType="number-pad"
+        maxLength={10}
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
+      <View style={styles.row}>
+        <View style={{ flex: 1 }}>
+          <TrainlyInput
+            label="FC (bpm, opcional)"
+            placeholder="150"
+            keyboardType="number-pad"
+            value={heartRate}
+            onChangeText={setHeartRate}
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <TrainlyInput
+            label="Elevação (m, opcional)"
+            placeholder="30"
+            keyboardType="number-pad"
+            value={elevation}
+            onChangeText={setElevation}
+          />
+        </View>
+      </View>
+    </FormSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 22, paddingTop: 12, maxHeight: '88%' },
-  handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, marginBottom: 16 },
-  title: { fontSize: 18, fontWeight: '800', marginBottom: 16 },
   label: { fontSize: 12.5, fontWeight: '600', marginBottom: 8 },
   typeRow: { marginBottom: 16 },
   row: { flexDirection: 'row', gap: 12 },
   todayLink: { fontSize: 12, fontWeight: '700' },
-  actions: { flexDirection: 'row', gap: 12, marginTop: 8 },
 });

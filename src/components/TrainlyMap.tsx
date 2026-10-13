@@ -1,13 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Animated, Easing, Platform, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import NativeMapView, { Marker as NativeMarker, Polyline as NativePolyline } from 'react-native-maps';
+import NativeMapView, {
+  Marker as NativeMarker,
+  Polygon as NativePolygon,
+  Polyline as NativePolyline,
+} from 'react-native-maps';
+import type { MKPointOfInterestCategoryType } from 'react-native-maps';
 // Só do caminho público (`from 'react-native-webview'`), nunca de um
 // subcaminho interno como `react-native-webview/lib/WebView` — ver o
 // comentário mais longo perto de `TrainlyWebViewProps` abaixo pro motivo.
 import { WebView as WebViewImpl } from 'react-native-webview';
 import { useTheme } from '../theme/ThemeContext';
+import { withAlpha } from '../theme/colors';
 import { TrainlyButton } from './TrainlyButton';
+import { useReducedMotion } from './Motion';
+import { buildMapHtml, DEFAULT_MAP_CENTER, RUN_ZOOM as MAP_RUN_ZOOM } from './mapHtml';
 
 /**
  * O mapa do Trainly.
@@ -78,13 +86,13 @@ export interface TrainlyMarker {
 }
 
 /** Zoom de "rua" — o enquadramento certo pra acompanhar uma corrida. */
-export const RUN_ZOOM = 16;
+export const RUN_ZOOM = MAP_RUN_ZOOM;
 
 /**
  * Onde o mapa fica enquanto o GPS ainda não respondeu. Sem isso ele abriria
  * numa vista do mundo inteiro (ou no meio do oceano) no primeiro instante.
  */
-const DEFAULT_CENTER: LatLon = { latitude: -23.55, longitude: -46.63 };
+const DEFAULT_CENTER: LatLon = DEFAULT_MAP_CENTER;
 
 /**
  * Caixa mínima, em graus, ao enquadrar um trajeto (~150 m). Sem isso, uma
@@ -119,6 +127,15 @@ export function boundsOf(coords: LatLon[]): TrainlyBounds | undefined {
   return { south: south - padLat, west: west - padLon, north: north + padLat, east: east + padLon };
 }
 
+/**
+ * Contorno por baixo do traçado: no escuro, a cor de fundo do app (a linha
+ * "recorta" o mapa); no claro, um violeta-noite translúcido — sem isso uma
+ * patente de cor clara (Prata, por exemplo) sumia em cima do mapa claro.
+ */
+function routeCasing(mode: 'dark' | 'light', background: string): string {
+  return mode === 'dark' ? background : 'rgba(20,15,42,0.5)';
+}
+
 function fillForVariant(variant: PinVariant, colors: { success: string; danger: string; primary: string }): string {
   return variant === 'start' ? colors.success : variant === 'finish' ? colors.danger : colors.primary;
 }
@@ -148,6 +165,12 @@ export interface TrainlyMapProps {
    * aviso que aparece quando o mapa (Android) não carrega.
    */
   offlineHint?: string;
+  /**
+   * Quanto do mapa fica coberto por painéis do app (em px), em cima e embaixo.
+   * O enquadramento passa a considerar só a parte visível e o selo "Legal"/
+   * atribuição do mapa sobe pra não ficar escondido atrás do painel.
+   */
+  insets?: { top?: number; bottom?: number };
 }
 
 export function TrainlyMap(props: TrainlyMapProps) {
@@ -163,10 +186,58 @@ function deltaForZoom(zoom: number): number {
   return 360 / Math.pow(2, zoom);
 }
 
-function NativeTrainlyMap({ style, center, bounds, zoom = RUN_ZOOM, path, pathColor, paths, markers }: TrainlyMapProps) {
-  const { colors } = useTheme();
+/**
+ * Só os pontos que interessam a quem treina: parques, praias, pistas,
+ * academias, quadras, trilhas, banheiros. Loja, restaurante, banco etc. somem
+ * — o traçado fica em destaque em vez de brigar com dezenas de ícones.
+ */
+const TRAINING_POIS: MKPointOfInterestCategoryType[] = [
+  'park',
+  'nationalPark',
+  'beach',
+  'stadium',
+  'fitnessCenter',
+  'hiking',
+  'swimming',
+  'soccer',
+  'tennis',
+  'basketball',
+  'volleyball',
+  'skatePark',
+  'restroom',
+];
+
+/**
+ * Um retângulo do tamanho do mundo, pintado por cima do mapa (e por baixo
+ * do traçado) com a cor de fundo do app em transparência: o Apple Maps não
+ * deixa trocar as cores do mapa, então isso "tinge" o mapa escuro de
+ * violeta-noite (e o claro de lavanda) — ele passa a parecer parte do
+ * Trainly em vez de um mapa genérico colado na tela.
+ */
+const WORLD: LatLon[] = [
+  { latitude: -85, longitude: -179.99 },
+  { latitude: 85, longitude: -179.99 },
+  { latitude: 85, longitude: 179.99 },
+  { latitude: -85, longitude: 179.99 },
+];
+
+function NativeTrainlyMap({
+  style,
+  center,
+  bounds,
+  zoom = RUN_ZOOM,
+  path,
+  pathColor,
+  paths,
+  markers,
+  insets,
+}: TrainlyMapProps) {
+  const { colors, mode } = useTheme();
   const mapRef = useRef<NativeMapView>(null);
   const didInitialMove = useRef(false);
+  const padTop = insets?.top ?? 0;
+  const padBottom = insets?.bottom ?? 0;
+  const dark = mode === 'dark';
 
   useEffect(() => {
     const map = mapRef.current;
@@ -178,7 +249,7 @@ function NativeTrainlyMap({ style, center, bounds, zoom = RUN_ZOOM, path, pathCo
           { latitude: bounds.south, longitude: bounds.west },
           { latitude: bounds.north, longitude: bounds.east },
         ],
-        { edgePadding: { top: 60, right: 50, bottom: 60, left: 50 }, animated: true },
+        { edgePadding: { top: 60 + padTop, right: 50, bottom: 60 + padBottom, left: 50 }, animated: true },
       );
       return;
     }
@@ -202,6 +273,10 @@ function NativeTrainlyMap({ style, center, bounds, zoom = RUN_ZOOM, path, pathCo
 
   const initialCenter = center ?? DEFAULT_CENTER;
   const initialDelta = deltaForZoom(zoom);
+  // Com um marcador de "você está aqui" próprio, o ponto azul do sistema
+  // ficaria duplicado em cima dele.
+  const hasCurrentMarker = (markers ?? []).some((m) => m.variant === 'current');
+  const routeColor = pathColor ?? colors.primary;
 
   return (
     <NativeMapView
@@ -215,50 +290,144 @@ function NativeTrainlyMap({ style, center, bounds, zoom = RUN_ZOOM, path, pathCo
         latitudeDelta: initialDelta,
         longitudeDelta: initialDelta,
       }}
-      showsUserLocation
+      // Segue o tema do APP (não o do celular) e usa a versão "suave" do
+      // mapa da Apple, com cores apagadas — quem aparece é o traçado.
+      userInterfaceStyle={mode}
+      mapType="mutedStandard"
+      pointsOfInterestFilter={TRAINING_POIS}
+      showsUserLocation={!hasCurrentMarker}
+      showsCompass={false}
+      showsScale={false}
+      showsTraffic={false}
+      showsIndoors={false}
+      showsBuildings
+      toolbarEnabled={false}
+      mapPadding={{ top: padTop, right: 0, bottom: padBottom, left: 0 }}
+      legalLabelInsets={{ top: 0, right: 0, bottom: padBottom + 6, left: 10 }}
     >
-      {path && path.length > 1 && (
-        <>
-          {/* Contorno mais grosso por baixo: dá contraste em cima de ruas
-              claras ou de parques verdes, onde só a linha colorida sumiria. */}
-          <NativePolyline coordinates={path} strokeColor={colors.background} strokeWidth={9} lineCap="round" lineJoin="round" />
-          <NativePolyline coordinates={path} strokeColor={pathColor ?? colors.primary} strokeWidth={5} lineCap="round" lineJoin="round" />
-        </>
-      )}
+      <NativePolygon
+        coordinates={WORLD}
+        fillColor={dark ? 'rgba(20,15,42,0.30)' : 'rgba(243,241,251,0.28)'}
+        strokeWidth={0}
+        strokeColor="transparent"
+        tappable={false}
+      />
       {(paths ?? []).map((p) =>
         p.coords.length > 1 ? (
+          <React.Fragment key={p.id}>
+            <NativePolyline
+              coordinates={p.coords}
+              strokeColor={withAlpha(p.color, 0.22)}
+              strokeWidth={9}
+              lineCap="round"
+              lineJoin="round"
+            />
+            <NativePolyline coordinates={p.coords} strokeColor={p.color} strokeWidth={3.5} lineCap="round" lineJoin="round" />
+          </React.Fragment>
+        ) : null,
+      )}
+      {path && path.length > 1 && (
+        <>
+          {/* Brilho largo por baixo: o traçado "acende" em cima do mapa escuro. */}
           <NativePolyline
-            key={p.id}
-            coordinates={p.coords}
-            strokeColor={p.color}
-            strokeWidth={3}
+            coordinates={path}
+            strokeColor={withAlpha(routeColor, 0.25)}
+            strokeWidth={15}
             lineCap="round"
             lineJoin="round"
           />
-        ) : null,
+          {/* Contorno: dá contraste em cima de ruas claras e parques, onde só a linha colorida sumiria. */}
+          <NativePolyline coordinates={path} strokeColor={routeCasing(mode, colors.background)} strokeWidth={8.5} lineCap="round" lineJoin="round" />
+          <NativePolyline coordinates={path} strokeColor={routeColor} strokeWidth={4.5} lineCap="round" lineJoin="round" />
+        </>
       )}
       {(markers ?? []).map((m) => (
-        <NativeMarker key={m.id} coordinate={m.coord} tracksViewChanges={false}>
-          <View style={[nativeStyles.pinRing, { borderColor: fillForVariant(m.variant, colors) }]}>
-            <View style={[nativeStyles.pinDot, { backgroundColor: fillForVariant(m.variant, colors) }]} />
-          </View>
+        <NativeMarker
+          key={m.id}
+          coordinate={m.coord}
+          tracksViewChanges={false}
+          anchor={{ x: 0.5, y: 0.5 }}
+          zIndex={m.variant === 'current' ? 10 : 1}
+        >
+          <MapPin variant={m.variant} />
         </NativeMarker>
       ))}
     </NativeMapView>
   );
 }
 
-const nativeStyles = StyleSheet.create({
-  pinRing: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 3,
-    backgroundColor: '#fff',
+/**
+ * Os marcadores do mapa (iOS): largada com "play", chegada com bandeira —
+ * círculo na cor da variante, borda branca e um halo suave em volta. A
+ * posição atual é um ponto na cor da marca, "pulsando" enquanto se move.
+ */
+function MapPin({ variant }: { variant: PinVariant }) {
+  const { colors } = useTheme();
+  const fill = fillForVariant(variant, colors);
+  if (variant === 'current') return <CurrentDot color={fill} />;
+  return (
+    <View style={pinStyles.wrap}>
+      <View style={[pinStyles.halo, { backgroundColor: withAlpha(fill, 0.25) }]} />
+      <View style={[pinStyles.core, { backgroundColor: fill }]}>
+        <Ionicons
+          name={variant === 'start' ? 'play' : 'flag'}
+          size={11}
+          color="#ffffff"
+          style={variant === 'start' ? { marginLeft: 2 } : undefined}
+        />
+      </View>
+    </View>
+  );
+}
+
+function CurrentDot({ color }: { color: string }) {
+  const reduced = useReducedMotion();
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (reduced) {
+      pulse.setValue(0.6);
+      return;
+    }
+    const anim = Animated.loop(
+      Animated.timing(pulse, { toValue: 1, duration: 1800, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [pulse, reduced]);
+
+  return (
+    <View style={pinStyles.meWrap}>
+      <Animated.View
+        style={[
+          pinStyles.mePulse,
+          {
+            backgroundColor: color,
+            opacity: reduced ? 0.22 : pulse.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] }),
+            transform: [{ scale: reduced ? 0.8 : pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] }) }],
+          },
+        ]}
+      />
+      <View style={[pinStyles.meDot, { backgroundColor: color }]} />
+    </View>
+  );
+}
+
+const pinStyles = StyleSheet.create({
+  wrap: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+  halo: { position: 'absolute', width: 34, height: 34, borderRadius: 17 },
+  core: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2.5,
+    borderColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pinDot: { width: 8, height: 8, borderRadius: 4 },
+  meWrap: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  mePulse: { position: 'absolute', width: 44, height: 44, borderRadius: 22 },
+  meDot: { width: 18, height: 18, borderRadius: 9, borderWidth: 3, borderColor: '#ffffff' },
 });
 
 // ---------------------------------------------------------------------------
@@ -317,6 +486,7 @@ function WebTrainlyMap({
   markers,
   followSmoothly = false,
   offlineHint,
+  insets,
 }: TrainlyMapProps) {
   const { colors, mode } = useTheme();
   const webviewRef = useRef<WebViewRef>(null);
@@ -340,6 +510,13 @@ function WebTrainlyMap({
     setReady(false);
   }, [attempt]);
 
+  const padTop = insets?.top ?? 0;
+  const padBottom = insets?.bottom ?? 0;
+  useEffect(() => {
+    if (!ready) return;
+    postToMap(webviewRef, { type: 'padding', top: padTop, bottom: padBottom });
+  }, [ready, padTop, padBottom]);
+
   useEffect(() => {
     if (!ready) return;
     const lat = center?.latitude ?? DEFAULT_CENTER.latitude;
@@ -354,10 +531,10 @@ function WebTrainlyMap({
       type: 'path',
       coords: (path ?? []).map((p) => [p.longitude, p.latitude]),
       color: pathColor ?? colors.primary,
-      casing: colors.background,
+      casing: routeCasing(mode, colors.background),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, path, pathColor, colors.primary, colors.background]);
+  }, [ready, path, pathColor, colors.primary, colors.background, mode]);
 
   useEffect(() => {
     if (!ready) return;
@@ -367,6 +544,7 @@ function WebTrainlyMap({
         id: m.id,
         lat: m.coord.latitude,
         lng: m.coord.longitude,
+        variant: m.variant,
         color: fillForVariant(m.variant, colors),
       })),
     });
@@ -454,228 +632,6 @@ function WebTrainlyMap({
  */
 function postToMap(ref: React.RefObject<WebViewRef | null>, payload: Record<string, unknown>) {
   ref.current?.postMessage(JSON.stringify(payload));
-}
-
-/**
- * Estilos do OpenFreeMap — gratuitos, sem chave, sem cadastro, sem limite de
- * uso (conferido em openfreemap.org). Cada estilo já embute os tiles, as
- * fontes e a atribuição corretos; o MapLibre GL JS desenha tudo isso sozinho
- * a partir da URL abaixo.
- */
-const STYLE_URL = {
-  dark: 'https://tiles.openfreemap.org/styles/dark',
-  light: 'https://tiles.openfreemap.org/styles/positron',
-} as const;
-
-// A partir da v6, o MapLibre GL JS passou a publicar só módulo ES
-// (`dist/maplibre-gl.mjs`) — o `dist/maplibre-gl.js` (UMD, o que esta página
-// carrega com uma <script src> comum) não existe mais a partir daí, e pedir
-// esse caminho em v6 dá 404 (confirmado ao vivo em unpkg.com depois que o
-// mapa do Android falhou num aparelho real com "Mapa sem conexão" mesmo com
-// internet normal). A v5.24.0 é a mais recente que ainda publica o UMD.
-const MAPLIBRE_VERSION = '5.24.0';
-
-/**
- * Gera a página que roda dentro do WebView. É HTML/CSS/JS puro — nenhuma
- * dependência de módulo nativo, por isso funciona no Expo Go.
- *
- * A comunicação com o React Native é só nos dois sentidos já conhecidos de
- * WebView: `postMessage`/`onMessage`. A página nunca precisa saber nada do
- * app — só entende os comandos `center`, `path`, `markers` e `bounds`.
- *
- * Atenção às coordenadas: o MapLibre GL JS (como todo software de mapa
- * baseado em GeoJSON) usa a ordem `[longitude, latitude]` — o oposto do
- * `{ latitude, longitude }` do resto do app. A conversão acontece só na
- * borda, nos `useEffect` do `WebTrainlyMap` acima; daqui pra dentro tudo já
- * chega na ordem que o MapLibre espera.
- */
-function buildMapHtml(mode: 'dark' | 'light'): string {
-  const styleUrl = mode === 'dark' ? STYLE_URL.dark : STYLE_URL.light;
-  const bg = mode === 'dark' ? '#140f2a' : '#f3f1fb';
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.css" onerror="trainlyFail()" />
-<style>
-  html, body, #map { height: 100%; margin: 0; padding: 0; background: ${bg}; }
-  .trainly-pin { width: 20px; height: 20px; border-radius: 10px; border: 3px solid #fff; box-sizing: border-box; }
-  .trainly-pin-dot { width: 8px; height: 8px; border-radius: 4px; margin: 3px; }
-  .maplibregl-ctrl-attrib { font-size: 10px; }
-</style>
-</head>
-<body>
-<div id="map"></div>
-<script src="https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.js" onerror="trainlyFail()"></script>
-<script>
-  function post(payload) {
-    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify(payload));
-  }
-
-  function trainlyFail() {
-    post({ type: 'error' });
-  }
-
-  // Se o script não carregar (sem internet) o navegador chama 'onerror'
-  // acima na maioria dos casos, mas por garantia também checamos depois de
-  // um tempo: se 'maplibregl' nunca apareceu, é porque o script não rodou.
-  var trainlyBootTimeout = setTimeout(function () {
-    if (typeof maplibregl === 'undefined') trainlyFail();
-  }, 9000);
-
-  window.addEventListener('load', function () {
-    try {
-      if (typeof maplibregl === 'undefined') { trainlyFail(); return; }
-      clearTimeout(trainlyBootTimeout);
-
-      var map = new maplibregl.Map({
-        container: 'map',
-        style: '${styleUrl}',
-        center: [${DEFAULT_CENTER.longitude}, ${DEFAULT_CENTER.latitude}],
-        zoom: ${RUN_ZOOM},
-        attributionControl: true,
-      });
-
-      var loaded = false;
-      var routeSourceId = 'trainly-route';
-      var markerLayers = {};
-      var pathOverlays = {};
-
-      function emptyLineString() {
-        return { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [] } };
-      }
-
-      function pinElement(color) {
-        var wrap = document.createElement('div');
-        wrap.className = 'trainly-pin';
-        wrap.style.background = '#fff';
-        wrap.style.borderColor = color;
-        var dot = document.createElement('div');
-        dot.className = 'trainly-pin-dot';
-        dot.style.background = color;
-        wrap.appendChild(dot);
-        return wrap;
-      }
-
-      function handleCommand(msg) {
-        if (msg.type === 'center') {
-          if (msg.animate) {
-            map.flyTo({ center: [msg.lng, msg.lat], zoom: msg.zoom, duration: 900 });
-          } else {
-            map.jumpTo({ center: [msg.lng, msg.lat], zoom: msg.zoom });
-          }
-        } else if (msg.type === 'path') {
-          var coords = msg.coords || [];
-          var source = map.getSource(routeSourceId);
-          var feature = coords.length > 1
-            ? { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: coords } }
-            : emptyLineString();
-          if (source) {
-            source.setData(feature);
-          } else {
-            map.addSource(routeSourceId, { type: 'geojson', data: feature });
-            // Contorno mais grosso por baixo: dá contraste em cima de ruas
-            // claras ou de parques verdes, onde só a linha colorida sumiria.
-            map.addLayer({
-              id: routeSourceId + '-casing', type: 'line', source: routeSourceId,
-              layout: { 'line-cap': 'round', 'line-join': 'round' },
-              paint: { 'line-color': msg.casing, 'line-width': 9, 'line-opacity': 0.55 },
-            });
-            map.addLayer({
-              id: routeSourceId + '-line', type: 'line', source: routeSourceId,
-              layout: { 'line-cap': 'round', 'line-join': 'round' },
-              paint: { 'line-color': msg.color, 'line-width': 5 },
-            });
-          }
-          if (map.getLayer(routeSourceId + '-line')) {
-            map.setPaintProperty(routeSourceId + '-line', 'line-color', msg.color);
-            map.setPaintProperty(routeSourceId + '-casing', 'line-color', msg.casing);
-          }
-        } else if (msg.type === 'markers') {
-          var seen = {};
-          (msg.markers || []).forEach(function (m) {
-            seen[m.id] = true;
-            if (markerLayers[m.id]) markerLayers[m.id].remove();
-            markerLayers[m.id] = new maplibregl.Marker({ element: pinElement(m.color) })
-              .setLngLat([m.lng, m.lat])
-              .addTo(map);
-          });
-          Object.keys(markerLayers).forEach(function (id) {
-            if (!seen[id]) { markerLayers[id].remove(); delete markerLayers[id]; }
-          });
-        } else if (msg.type === 'bounds') {
-          map.fitBounds([msg.west, msg.south, msg.east, msg.north], { padding: 50, duration: 900 });
-        } else if (msg.type === 'paths') {
-          var seenPaths = {};
-          (msg.paths || []).forEach(function (p) {
-            seenPaths[p.id] = true;
-            var srcId = 'trainly-ov-' + p.id;
-            var feature = { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: p.coords } };
-            var source = map.getSource(srcId);
-            if (source) {
-              source.setData(feature);
-            } else {
-              map.addSource(srcId, { type: 'geojson', data: feature });
-              // Contorno leve por baixo, igual ao traçado único — só que mais
-              // fino, porque aqui tem várias rotas ao mesmo tempo na mesma tela.
-              map.addLayer({
-                id: srcId + '-casing', type: 'line', source: srcId,
-                layout: { 'line-cap': 'round', 'line-join': 'round' },
-                paint: { 'line-color': msg.casing, 'line-width': 5, 'line-opacity': 0.35 },
-              });
-              map.addLayer({
-                id: srcId + '-line', type: 'line', source: srcId,
-                layout: { 'line-cap': 'round', 'line-join': 'round' },
-                paint: { 'line-color': p.color, 'line-width': 3, 'line-opacity': 0.85 },
-              });
-            }
-            if (map.getLayer(srcId + '-line')) {
-              map.setPaintProperty(srcId + '-line', 'line-color', p.color);
-              map.setPaintProperty(srcId + '-casing', 'line-color', msg.casing);
-            }
-          });
-          Object.keys(pathOverlays).forEach(function (id) {
-            if (!seenPaths[id]) {
-              var oldSrcId = 'trainly-ov-' + id;
-              if (map.getLayer(oldSrcId + '-line')) map.removeLayer(oldSrcId + '-line');
-              if (map.getLayer(oldSrcId + '-casing')) map.removeLayer(oldSrcId + '-casing');
-              if (map.getSource(oldSrcId)) map.removeSource(oldSrcId);
-            }
-          });
-          pathOverlays = seenPaths;
-        }
-      }
-
-      function onMessage(event) {
-        try { handleCommand(JSON.parse(event.data)); } catch (e) {}
-      }
-      // Android entrega no 'document', iOS entrega no 'window' — este
-      // componente só roda no Android, mas registrar os dois é a forma
-      // recomendada pelo próprio react-native-webview e não custa nada.
-      document.addEventListener('message', onMessage);
-      window.addEventListener('message', onMessage);
-
-      map.on('load', function () {
-        loaded = true;
-        post({ type: 'ready' });
-      });
-
-      // Depois que o mapa já carregou uma vez, um erro isolado (ex: um único
-      // tile que falhou ao buscar durante um arrasto) não deve derrubar o
-      // mapa inteiro pra tela de "sem conexão" — só um erro ANTES do
-      // primeiro carregamento (o estilo inteiro não veio) é motivo real.
-      map.on('error', function () {
-        if (!loaded) trainlyFail();
-      });
-    } catch (e) {
-      trainlyFail();
-    }
-  });
-</script>
-</body>
-</html>`;
 }
 
 const fallbackStyles = StyleSheet.create({
