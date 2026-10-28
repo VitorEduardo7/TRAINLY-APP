@@ -215,7 +215,7 @@ export function ExploreRoutesScreen() {
                   : 'Termine uma atividade por GPS e publique ela como rota lá no Histórico.'
               }
             />
-          ) : null
+          ) : undefined
         }
       />
     </SafeAreaView>

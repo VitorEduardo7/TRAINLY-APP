@@ -210,8 +210,8 @@ export function TrackLoop({ width, lapMs = 5600, children }: LoopProps) {
       height: size,
       borderRadius: size / 2,
       transform: [
-        { translateX: progress.interpolate({ inputRange: geo.inputRange, outputRange: geo.xs.map((x) => x - size / 2) }) },
-        { translateY: progress.interpolate({ inputRange: geo.inputRange, outputRange: geo.ys.map((y) => y - size / 2) }) },
+        { translateX: (progress as Animated.AnimatedInterpolation<number>).interpolate({ inputRange: geo.inputRange, outputRange: geo.xs.map((x) => x - size / 2) }) },
+        { translateY: (progress as Animated.AnimatedInterpolation<number>).interpolate({ inputRange: geo.inputRange, outputRange: geo.ys.map((y) => y - size / 2) }) },
       ],
     };
   };

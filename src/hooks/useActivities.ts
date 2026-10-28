@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Activity, ActivityType } from '../types/models';
 import { xpFromActivity } from '../lib/rank';
+import { PickedImage, removeImageByUrl, uploadImage } from '../lib/photoUpload';
 
 export function useActivities(userId: string | undefined) {
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -40,10 +41,13 @@ export function useActivities(userId: string | undefined) {
       path?: [number, number][] | null;
       /** AAAA-MM-DD (opcional). Sem isso, o banco usa a data/hora atual. */
       date?: string | null;
+      /** Foto do treino (opcional) — vai pro bucket `activity-photos`, igual ao site. */
+      photo?: PickedImage | null;
     }) => {
       if (!userId) throw new Error('Usuário não autenticado');
       const xpEarned = xpFromActivity(input.distanceKm, input.durationSec);
-      const { error } = await supabase.from('activities').insert({
+      const photoUrl = input.photo ? await uploadImage('activity-photos', userId, input.photo, 'activity') : null;
+      const { data, error } = await supabase.from('activities').insert({
         user_id: userId,
         type: input.type,
         title: input.title ?? null,
@@ -57,15 +61,81 @@ export function useActivities(userId: string | undefined) {
         // data digitada pelo usuário "vire" o dia anterior ou seguinte só
         // por causa da diferença entre o fuso do aparelho e o do banco.
         ...(input.date ? { date: `${input.date}T12:00:00` } : {}),
-      });
-      if (error) throw error;
+        ...(photoUrl ? { photo_url: photoUrl } : {}),
+      }).select('xp_earned').single();
+      if (error) {
+        await removeImageByUrl('activity-photos', photoUrl);
+        throw error;
+      }
       await load();
-      return xpEarned;
+      // O XP que vale é o que o banco gravou (com o xp_seguro.sql instalado,
+      // é o banco que calcula — mesma fórmula, mas a fonte da verdade é ele).
+      return Number((data as any)?.xp_earned ?? xpEarned);
     },
     [userId, load],
   );
 
-  return { activities, loading, error, reload: load, createActivity };
+  /**
+   * Editar um treino próprio (igual ao site): tipo, título, distância,
+   * duração, FC, elevação e foto. O XP é recalculado com a mesma fórmula e o
+   * banco ajusta o total do perfil pela diferença (site_integration.sql).
+   * A data não muda, pra não bagunçar sequência e desafios já contados.
+   */
+  const updateActivity = useCallback(
+    async (
+      activity: Activity,
+      input: {
+        type: ActivityType;
+        title?: string;
+        distanceKm: number;
+        durationSec: number;
+        heartRate?: number | null;
+        elevationM?: number | null;
+        /** `undefined` = não mexe na foto; `null` = tira; imagem nova = troca. */
+        photo?: PickedImage | null;
+      },
+    ) => {
+      if (!userId) throw new Error('Usuário não autenticado');
+      const fields: Record<string, unknown> = {
+        type: input.type,
+        title: input.title?.trim() || null,
+        distance_km: input.distanceKm,
+        duration_sec: input.durationSec,
+        heart_rate: input.heartRate ?? null,
+        elevation_m: input.elevationM ?? null,
+        xp_earned: xpFromActivity(input.distanceKm, input.durationSec),
+      };
+      let newPhotoUrl: string | null = null;
+      if (input.photo) {
+        newPhotoUrl = await uploadImage('activity-photos', userId, input.photo, 'activity');
+        fields.photo_url = newPhotoUrl;
+      } else if (input.photo === null) {
+        fields.photo_url = null;
+      }
+      const { error } = await supabase.from('activities').update(fields).eq('id', activity.id).eq('user_id', userId);
+      if (error) {
+        await removeImageByUrl('activity-photos', newPhotoUrl);
+        throw error;
+      }
+      if (input.photo !== undefined && activity.photo_url) await removeImageByUrl('activity-photos', activity.photo_url);
+      await load();
+    },
+    [userId, load],
+  );
+
+  /** Excluir um treino próprio — o banco devolve o XP dele (site_integration.sql). */
+  const deleteActivity = useCallback(
+    async (activity: Activity) => {
+      if (!userId) throw new Error('Usuário não autenticado');
+      const { error } = await supabase.from('activities').delete().eq('id', activity.id).eq('user_id', userId);
+      if (error) throw error;
+      await removeImageByUrl('activity-photos', activity.photo_url);
+      setActivities((prev) => prev.filter((a) => a.id !== activity.id));
+    },
+    [userId],
+  );
+
+  return { activities, loading, error, reload: load, createActivity, updateActivity, deleteActivity };
 }
 
 // Soma de km dos últimos 7 dias, por dia (pra montar o gráfico semanal)

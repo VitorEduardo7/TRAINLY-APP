@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../theme/ThemeContext';
 import { SCREEN_WASH, withAlpha } from '../theme/colors';
 import { useAuth } from '../hooks/useAuth';
-import { useClubDetail } from '../hooks/useClubs';
+import { formatMetricValue, METRIC_LABEL, metricOf, useClubDetail } from '../hooks/useClubs';
 import { Card } from '../components/Card';
 import { TrainlyButton } from '../components/TrainlyButton';
 import { ClanWarCard } from '../components/ClanWarCard';
@@ -19,7 +19,14 @@ import { Avatar } from '../components/Avatar';
 import { Text } from '../components/Typography';
 import { selection, warning } from '../lib/haptics';
 import { formatKm } from '../lib/geo';
-import { ChallengeProgress, ClubChallenge, ClubMember } from '../types/models';
+import { ChallengeMetric, ChallengeProgress, ClubChallenge, ClubMember } from '../types/models';
+
+const METRIC_ICON: Record<ChallengeMetric, React.ComponentProps<typeof Ionicons>['name']> = {
+  km: 'navigate-outline',
+  activities: 'flash-outline',
+  hours: 'time-outline',
+  days: 'calendar-number-outline',
+};
 import { RootStackParamList } from '../navigation/types';
 
 type ClubDetailRoute = RouteProp<RootStackParamList, 'ClubDetail'>;
@@ -282,7 +289,7 @@ export function ClubDetailScreen() {
           compact
           icon="flag-outline"
           title="Nenhum desafio criado ainda"
-          message={isAdmin ? 'Crie o primeiro com uma meta de km e um período.' : 'Quando o admin criar um, ele aparece aqui.'}
+          message={isAdmin ? 'Crie o primeiro: escolha o que vale (km, atividades, horas ou dias) e o período.' : 'Quando o admin criar um, ele aparece aqui.'}
         />
       )}
 
@@ -318,9 +325,17 @@ export function ClubDetailScreen() {
                     </Text>
                   </View>
                   <View style={styles.metaItem}>
-                    <Ionicons name="navigate-outline" size={14} color={colors.textMuted} />
+                    <Ionicons name={METRIC_ICON[metricOf(challenge)]} size={14} color={colors.textMuted} />
                     <Text style={[styles.challengeMeta, { color: colors.textMuted }]}>
-                      Meta: <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{Number(challenge.goal_km)} km</Text>
+                      {metricOf(challenge) === 'km' && Number(challenge.goal_km) > 0 ? (
+                        <>
+                          Meta: <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{Number(challenge.goal_km)} km</Text>
+                        </>
+                      ) : (
+                        <>
+                          Ranking: <Text style={{ color: colors.textPrimary, fontWeight: '700' }}>{METRIC_LABEL[metricOf(challenge)]}</Text>
+                        </>
+                      )}
                     </Text>
                   </View>
                 </View>
@@ -341,7 +356,11 @@ export function ClubDetailScreen() {
                   ) : (
                     (board ?? []).map((entry, idx) => {
                       const podium = idx < 3 ? PODIUM[idx] : null;
-                      const done = entry.km >= entry.goalKm;
+                      const metric = metricOf(challenge);
+                      const hasGoal = entry.goalKm > 0;
+                      const done = hasGoal && entry.km >= entry.goalKm;
+                      // Sem meta, a barra é relativa ao 1º colocado (quanto falta pra alcançar).
+                      const leader = (board ?? [])[0]?.value ?? 0;
                       return (
                         <View key={entry.userId} style={styles.boardRow}>
                           <View
@@ -362,11 +381,11 @@ export function ClubDetailScreen() {
                                 {entry.name}
                               </Text>
                               <Text style={[styles.boardKm, { color: done ? colors.success : colors.textMuted }]}>
-                                {formatKm(entry.km)}/{entry.goalKm} km
+                                {hasGoal ? `${formatKm(entry.km)}/${entry.goalKm} km` : formatMetricValue(metric, entry.value)}
                               </Text>
                             </View>
                             <ProgressBar
-                              progress={entry.goalKm > 0 ? entry.km / entry.goalKm : 0}
+                              progress={hasGoal ? entry.km / entry.goalKm : leader > 0 ? entry.value / leader : 0}
                               height={6}
                               color={done ? colors.success : podium ?? colors.primary}
                               delay={idx * 60}

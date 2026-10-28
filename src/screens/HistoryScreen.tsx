@@ -9,29 +9,28 @@ import { withAlpha } from '../theme/colors';
 import { useAuth } from '../hooks/useAuth';
 import { useActivities } from '../hooks/useActivities';
 import { useRoutes } from '../hooks/useRoutes';
-import { Card } from '../components/Card';
 import { TrainlyButton } from '../components/TrainlyButton';
 import { PublishRouteModal } from '../components/PublishRouteModal';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { SportBadge } from '../components/SportIcon';
+import { ActivityCard } from '../components/ActivityCard';
+import { ActivityFormInput, RegisterActivityModal } from '../components/RegisterActivityModal';
 import { FadeIn, PressableScale } from '../components/Motion';
 import { SkeletonCard } from '../components/Skeleton';
 import { EmptyState } from '../components/EmptyState';
 import { Text } from '../components/Typography';
 import { tapLight, success } from '../lib/haptics';
-import { formatClock, formatKm, paceMinPerKm } from '../lib/geo';
 import { Activity, RouteDifficulty, RouteType } from '../types/models';
 import { RootStackParamList } from '../navigation/types';
-import { XpChip } from '../components/XpChip';
 
 const ROUTE_TYPES: RouteType[] = ['Corrida', 'Ciclismo', 'Caminhada'];
 
 export function HistoryScreen() {
   const { colors } = useTheme();
-  const { profile } = useAuth();
-  const { activities, loading, error, reload } = useActivities(profile?.id);
+  const { profile, refreshProfile } = useAuth();
+  const { activities, loading, error, reload, updateActivity, deleteActivity } = useActivities(profile?.id);
   const { routes, publishRoute, reload: reloadRoutes } = useRoutes();
   const [publishing, setPublishing] = useState<Activity | null>(null);
+  const [editing, setEditing] = useState<Activity | null>(null);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   useFocusEffect(
@@ -106,75 +105,87 @@ export function HistoryScreen() {
 
   const firstLoad = loading && activities.length === 0 && !error;
 
-  const renderItem = ({ item, index }: { item: Activity; index: number }) => {
+  // "⋯" do card: editar ou excluir o treino (igual ao site).
+  const openMenu = (item: Activity) => {
+    tapLight();
+    Alert.alert(item.title || item.type, 'O que você quer fazer com essa atividade?', [
+      { text: 'Editar', onPress: () => setEditing(item) },
+      { text: 'Excluir', style: 'destructive', onPress: () => confirmDelete(item) },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  };
+
+  const confirmDelete = (item: Activity) => {
     const published = publishedRouteFor(item);
-    return (
-      <FadeIn delay={Math.min(index, 5) * 60}>
-        <Card style={styles.item}>
-          <View style={styles.itemTop}>
-            <SportBadge type={item.type} size={40} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.title, { color: colors.textPrimary }]}>{item.title || item.type}</Text>
-              <Text style={[styles.date, { color: colors.textMuted }]}>
-                {new Date(item.date).toLocaleDateString('pt-BR', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                })}
-              </Text>
-            </View>
-            <XpChip xp={item.xp_earned} label />
-          </View>
-
-          <View style={[styles.statsRow, { borderColor: colors.border }]}>
-            <MiniStat label="Distância" value={`${formatKm(Number(item.distance_km))} km`} colors={colors} />
-            <MiniStat label="Tempo" value={formatClock(item.duration_sec)} colors={colors} />
-            <MiniStat
-              label="Ritmo"
-              value={`${paceMinPerKm(Number(item.distance_km), item.duration_sec)}/km`}
-              colors={colors}
-            />
-            {item.elevation_m ? <MiniStat label="Elevação" value={`${item.elevation_m} m`} colors={colors} /> : null}
-          </View>
-
-          <View style={{ marginTop: 12 }}>
-            {published ? (
-              <PressableScale
-                scaleTo={0.98}
-                onPress={() => {
-                  tapLight();
-                  navigation.navigate('RouteDetail', { routeId: published.id });
-                }}
-                style={[
-                  styles.publishedBtn,
-                  { borderColor: colors.success, backgroundColor: withAlpha(colors.success, 0.1) },
-                ]}
-              >
-                <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-                <Text style={[styles.publishedBtnText, { color: colors.success }]}>Publicada como rota — ver no mapa</Text>
-              </PressableScale>
-            ) : canPublish(item) ? (
-              <TrainlyButton title="Publicar como rota" variant="secondary" onPress={() => setPublishing(item)} />
-            ) : (
-              <>
-                <PressableScale
-                  scaleTo={0.98}
-                  onPress={() => explainBlock(item)}
-                  style={[styles.lockedBtn, { borderColor: colors.border }]}
-                >
-                  <Ionicons name="lock-closed-outline" size={15} color={colors.textMuted} />
-                  <Text style={[styles.lockedBtnText, { color: colors.textMuted }]}>Publicar como rota</Text>
-                </PressableScale>
-                <Text style={[styles.lockedHint, { color: colors.textMuted }]}>
-                  {blockReason(item)} Toque pra entender.
-                </Text>
-              </>
-            )}
-          </View>
-        </Card>
-      </FadeIn>
+    Alert.alert(
+      'Excluir atividade?',
+      `O XP dela (${item.xp_earned} XP) sai do seu total.${
+        published ? ' A rota publicada a partir dela continua no mapa.' : ''
+      } Não dá pra desfazer.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteActivity(item);
+              success();
+              refreshProfile();
+            } catch (err: any) {
+              Alert.alert('Trainly', err.message ?? 'Não foi possível excluir.');
+            }
+          },
+        },
+      ],
     );
   };
+
+  const handleUpdate = async (activity: Activity, input: ActivityFormInput) => {
+    await updateActivity(activity, input);
+    refreshProfile();
+  };
+
+  const renderPublish = (item: Activity) => {
+    const published = publishedRouteFor(item);
+    if (published) {
+      return (
+        <PressableScale
+          scaleTo={0.98}
+          onPress={() => {
+            tapLight();
+            navigation.navigate('RouteDetail', { routeId: published.id });
+          }}
+          style={[styles.publishedBtn, { borderColor: colors.success, backgroundColor: withAlpha(colors.success, 0.1) }]}
+        >
+          <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+          <Text style={[styles.publishedBtnText, { color: colors.success }]}>Publicada como rota — ver no mapa</Text>
+        </PressableScale>
+      );
+    }
+    if (canPublish(item)) {
+      return <TrainlyButton title="Publicar como rota" variant="secondary" onPress={() => setPublishing(item)} />;
+    }
+    return (
+      <>
+        <PressableScale
+          scaleTo={0.98}
+          onPress={() => explainBlock(item)}
+          style={[styles.lockedBtn, { borderColor: colors.border }]}
+        >
+          <Ionicons name="lock-closed-outline" size={15} color={colors.textMuted} />
+          <Text style={[styles.lockedBtnText, { color: colors.textMuted }]}>Publicar como rota</Text>
+        </PressableScale>
+        <Text style={[styles.lockedHint, { color: colors.textMuted }]}>{blockReason(item)} Toque pra entender.</Text>
+      </>
+    );
+  };
+
+  const renderItem = ({ item, index }: { item: Activity; index: number }) => (
+    <FadeIn delay={Math.min(index, 5) * 60}>
+      <ActivityCard activity={item} onMore={() => openMenu(item)} footer={renderPublish(item)} />
+    </FadeIn>
+  );
 
   return (
     // Só o topo — a tab bar de baixo já respeita a área segura inferior sozinha.
@@ -208,8 +219,15 @@ export function HistoryScreen() {
                   : 'Toque em "Iniciar corrida" ou registre um treino feito em outro dia.'
               }
             />
-          ) : null
+          ) : undefined
         }
+      />
+
+      <RegisterActivityModal
+        visible={!!editing}
+        editing={editing}
+        onClose={() => setEditing(null)}
+        onUpdate={handleUpdate}
       />
 
       {publishing && (
@@ -224,23 +242,8 @@ export function HistoryScreen() {
   );
 }
 
-function MiniStat({ label, value, colors }: { label: string; value: string; colors: any }) {
-  return (
-    <View style={{ alignItems: 'center', flex: 1 }}>
-      <Text style={[styles.miniValue, { color: colors.textPrimary }]}>{value}</Text>
-      <Text style={[styles.miniLabel, { color: colors.textMuted }]}>{label}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   list: { padding: 20, paddingBottom: 130 },
-  item: { marginBottom: 14 },
-  itemTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  title: { fontSize: 15, fontWeight: '700' },
-  date: { fontSize: 12, marginTop: 2, fontWeight: '600' },
-  xp: { fontSize: 13, fontWeight: '800' },
-  statsRow: { flexDirection: 'row', borderTopWidth: 1, paddingTop: 12 },
   lockedBtn: {
     flexDirection: 'row',
     gap: 7,
@@ -263,6 +266,4 @@ const styles = StyleSheet.create({
   },
   publishedBtnText: { fontSize: 13.5, fontWeight: '800' },
   lockedHint: { fontSize: 11.5, fontWeight: '600', marginTop: 8, textAlign: 'center', lineHeight: 16 },
-  miniValue: { fontSize: 14, fontWeight: '800' },
-  miniLabel: { fontSize: 12, fontWeight: '600', marginTop: 3 },
 });

@@ -7,8 +7,8 @@ import { Card } from './Card';
 import { SectionTitle } from './SectionTitle';
 import { PressableScale } from './Motion';
 import { Text } from './Typography';
-
-type IconName = React.ComponentProps<typeof Ionicons>['name'];
+import { AchievementBadge } from './AchievementBadge';
+import { progressRatio } from '../lib/achievements';
 
 interface Props {
   userId: string | undefined;
@@ -28,7 +28,14 @@ export function AchievementsPreviewCard({ userId, onPress }: Props) {
   // vez de um card vazio ou quebrado.
   if (!loading && total === 0) return null;
 
-  const preview = achievements.slice(0, 6);
+  // Primeiro as últimas que a pessoa ganhou; depois as mais perto de sair.
+  const unlocked = achievements
+    .filter((a) => a.unlocked)
+    .sort((a, b) => (b.unlockedAt ?? '').localeCompare(a.unlockedAt ?? ''));
+  const next = achievements
+    .filter((a) => !a.unlocked && !a.secret)
+    .sort((a, b) => (progressRatio(b, b.current) ?? 0) - (progressRatio(a, a.current) ?? 0));
+  const preview = [...unlocked, ...next].slice(0, 6);
 
   return (
     <PressableScale onPress={onPress} accessibilityRole="button" accessibilityLabel="Ver todas as conquistas">
@@ -41,13 +48,7 @@ export function AchievementsPreviewCard({ userId, onPress }: Props) {
         />
         <View style={styles.row}>
           {preview.map((a) => (
-            <View key={a.id} style={[styles.icon, { backgroundColor: a.unlocked ? colors.primarySoft : colors.surface }]}>
-              <Ionicons
-                name={(a.unlocked ? a.icon : 'lock-closed') as IconName}
-                size={17}
-                color={a.unlocked ? colors.primary : colors.textMuted}
-              />
-            </View>
+            <AchievementBadge key={a.id} icon={a.icon} tier={a.tier} unlocked={a.unlocked} size={36} />
           ))}
           <View style={styles.chevron}>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
@@ -61,6 +62,5 @@ export function AchievementsPreviewCard({ userId, onPress }: Props) {
 const styles = StyleSheet.create({
   count: { fontSize: 12, fontWeight: '700' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  icon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   chevron: { marginLeft: 'auto', paddingLeft: 4 },
 });

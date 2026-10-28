@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator, NativeStackNavigationOptions } from '@react-navigation/native-stack';
@@ -17,6 +18,10 @@ import { CustomizationScreen } from '../screens/CustomizationScreen';
 import { ClanWarScreen } from '../screens/ClanWarScreen';
 import { StreakScreen } from '../screens/StreakScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { EvolutionScreen } from '../screens/EvolutionScreen';
+import { OnboardingScreen, onboardingKey } from '../screens/OnboardingScreen';
+import { AchievementCelebration, requestAchievementCheck } from '../components/AchievementCelebration';
+import { navigationRef } from './navigationRef';
 import { MainTabs } from './MainTabs';
 import { RootStackParamList } from './types';
 
@@ -25,7 +30,20 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export function RootNavigator() {
   const { colors, mode } = useTheme();
   const fontsReady = useFontsReady();
-  const { session, profile, loading } = useAuth();
+  const { session, profile, loading, refreshProfile } = useAuth();
+  const [navReady, setNavReady] = useState(false);
+
+  // Primeiro acesso desta conta neste celular: abre a introdução.
+  useEffect(() => {
+    if (!navReady || !session || !profile?.id) return;
+    let cancelled = false;
+    AsyncStorage.getItem(onboardingKey(profile.id)).then((done) => {
+      if (!cancelled && !done && navigationRef.isReady()) navigationRef.navigate('Onboarding');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [navReady, session, profile?.id]);
 
   if (loading) {
     return (
@@ -75,7 +93,13 @@ export function RootNavigator() {
 
   return (
     <NotificationsProvider userId={profile?.id}>
-      <NavigationContainer theme={navTheme}>
+      <NavigationContainer
+        ref={navigationRef}
+        theme={navTheme}
+        onReady={() => setNavReady(true)}
+        // A cada troca de tela, vê se saiu conquista nova (no máximo a cada 15s).
+        onStateChange={() => requestAchievementCheck()}
+      >
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {session ? (
             <>
@@ -114,11 +138,22 @@ export function RootNavigator() {
                 component={SettingsScreen}
                 options={{ ...detailHeader, title: 'Configurações' }}
               />
+              <Stack.Screen
+                name="Evolution"
+                component={EvolutionScreen}
+                options={{ ...detailHeader, title: 'Evolução' }}
+              />
+              <Stack.Screen
+                name="Onboarding"
+                component={OnboardingScreen}
+                options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
+              />
             </>
           ) : (
             <Stack.Screen name="Auth" component={LoginScreen} />
           )}
         </Stack.Navigator>
+        {session ? <AchievementCelebration userId={profile?.id} onShown={refreshProfile} /> : null}
       </NavigationContainer>
     </NotificationsProvider>
   );

@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
 import { Alert, StyleSheet, Switch, View } from 'react-native';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
 import { useTheme, FontScale } from '../theme/ThemeContext';
@@ -38,6 +41,7 @@ export function SettingsScreen() {
     fontScale,
     setFontScale,
   } = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { session, signOut, updateEmail, confirmEmailChange, updatePassword } = useAuth();
 
   const currentEmail = session?.user?.email ?? '';
@@ -325,8 +329,19 @@ export function SettingsScreen() {
         </Card>
       </FadeIn>
 
+      <FadeIn delay={120}>
+        <View style={{ marginTop: 20 }}>
+          <TrainlyButton
+            title="Ver a introdução de novo"
+            icon="play-circle-outline"
+            variant="secondary"
+            onPress={() => navigation.navigate('Onboarding')}
+          />
+        </View>
+      </FadeIn>
+
       <FadeIn delay={140}>
-        <View style={{ marginTop: 20, marginBottom: 24 }}>
+        <View style={{ marginTop: 12, marginBottom: 24 }}>
           <TrainlyButton title="Sair da conta" variant="danger" onPress={handleLogout} />
         </View>
       </FadeIn>

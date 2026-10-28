@@ -12,6 +12,7 @@ import { withAlpha } from '../theme/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../hooks/useAuth';
 import { useActivities } from '../hooks/useActivities';
+import { requestAchievementCheck } from '../components/AchievementCelebration';
 import { TrainlyButton } from '../components/TrainlyButton';
 import { ChipSelector } from '../components/ChipSelector';
 import { PressableScale, usePulse } from '../components/Motion';
@@ -316,7 +317,14 @@ export function RunScreen() {
       await refreshProfile();
       success();
       Alert.alert('Trainly', `Atividade salva! Você ganhou ${xp} XP.`, [
-        { text: 'OK', onPress: () => navigation.goBack() },
+        {
+          text: 'OK',
+          onPress: () => {
+            navigation.goBack();
+            // Depois de fechar a tela da corrida, mostra conquista nova (se saiu).
+            setTimeout(() => requestAchievementCheck(true), 700);
+          },
+        },
       ]);
     } catch (err: any) {
       Alert.alert('Trainly', err.message ?? 'Não foi possível salvar a atividade.');

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { ChallengeProgress, Club, ClubChallenge, ClubMember } from '../types/models';
+import { ChallengeMetric, ChallengeProgress, Club, ClubChallenge, ClubMember } from '../types/models';
 
 // Lista de clubes do usuário. Clube não tem "descobrir" público — só entra
 // quem tem o código de convite (igual ao site).
@@ -123,21 +123,32 @@ export function useClubDetail(clubId: string | undefined, userId: string | undef
   }, [clubId, userId, load]);
 
   const createChallenge = useCallback(
-    async (input: { title: string; description?: string; goalKm: number; startDate: string; endDate: string }) => {
+    async (input: {
+      title: string;
+      description?: string;
+      metric: ChallengeMetric;
+      goalKm: number;
+      startDate: string;
+      endDate: string;
+    }) => {
       if (!clubId || !userId) throw new Error('Dados inválidos');
-      const { error } = await supabase.from('club_challenges').insert({
+      const row: Record<string, unknown> = {
         club_id: clubId,
         title: input.title,
         description: input.description || null,
-        goal_km: input.goalKm,
+        goal_km: input.metric === 'km' ? input.goalKm : 0,
         start_date: input.startDate,
         end_date: input.endDate,
         created_by: userId,
-      });
+      };
+      // `metric` (km/atividades/horas/dias) é a coluna que o site usa
+      // (site_integration.sql). Num banco sem ela, só desafio de km existe.
+      if (input.metric !== 'km' || challenges.some((c) => 'metric' in c)) row.metric = input.metric;
+      const { error } = await supabase.from('club_challenges').insert(row);
       if (error) throw error;
       await load();
     },
-    [clubId, userId, load],
+    [clubId, userId, load, challenges],
   );
 
   // Ação de admin: liga/desliga o silenciamento de um membro. Silenciado
@@ -169,6 +180,11 @@ export function useClubDetail(clubId: string | undefined, userId: string | undef
     [clubId, load],
   );
 
+  /**
+   * Ranking de um desafio, na métrica dele (igual ao site): km somados,
+   * número de atividades, horas de treino ou dias com treino, contando só o
+   * período do desafio. A meta por membro só existe em desafio de km.
+   */
   const getLeaderboard = useCallback(
     async (challenge: ClubChallenge): Promise<ChallengeProgress[]> => {
       // Membro silenciado fica de fora do ranking do desafio — mesma regra
@@ -179,29 +195,34 @@ export function useClubDetail(clubId: string | undefined, userId: string | undef
 
       const { data: activityRows } = await supabase
         .from('activities')
-        .select('user_id, distance_km, date')
+        .select('user_id, distance_km, duration_sec, date')
         .in('user_id', memberIds)
         .gte('date', challenge.start_date)
         .lte('date', `${challenge.end_date}T23:59:59`);
 
-      const totals = new Map<string, number>();
+      const metric = metricOf(challenge);
+      const byUser = new Map<string, any[]>();
       for (const row of (activityRows ?? []) as any[]) {
-        totals.set(row.user_id, (totals.get(row.user_id) ?? 0) + Number(row.distance_km));
+        byUser.set(row.user_id, [...(byUser.get(row.user_id) ?? []), row]);
       }
 
-      const goalKm = Number(challenge.goal_km);
+      const goalKm = metric === 'km' ? Number(challenge.goal_km) || 0 : 0;
       return activeMembers
         .map((m) => {
-          const km = totals.get(m.user_id) ?? 0;
+          const acts = byUser.get(m.user_id) ?? [];
+          const km = acts.reduce((s, a) => s + Number(a.distance_km), 0);
+          const value = challengeValue(metric, acts);
           return {
             userId: m.user_id,
             name: m.profile?.name ?? 'Atleta',
+            avatarUrl: m.profile?.avatar_url ?? null,
+            value,
             km,
             goalKm,
             pct: goalKm > 0 ? Math.min(999, Math.round((km / goalKm) * 100)) : 0,
           };
         })
-        .sort((a, b) => b.km - a.km);
+        .sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, 'pt-BR'));
     },
     [members],
   );
@@ -221,4 +242,34 @@ export function useClubDetail(clubId: string | undefined, userId: string | undef
     setMemberSilenced,
     kickMember,
   };
+}
+
+/** Métrica de um desafio — 'km' quando a coluna ainda não existe ou veio vazia. */
+export function metricOf(challenge: ClubChallenge): ChallengeMetric {
+  const m = challenge.metric;
+  return m === 'activities' || m === 'hours' || m === 'days' ? m : 'km';
+}
+
+export const METRIC_UNIT: Record<ChallengeMetric, string> = { km: 'km', activities: 'atividades', hours: 'h', days: 'dias' };
+export const METRIC_LABEL: Record<ChallengeMetric, string> = {
+  km: 'Distância (km)',
+  activities: 'Nº de atividades',
+  hours: 'Horas de treino',
+  days: 'Dias ativos',
+};
+
+/** Valor de um membro na métrica, a partir das atividades dele no período. */
+function challengeValue(metric: ChallengeMetric, acts: { distance_km: number; duration_sec: number; date: string }[]): number {
+  if (metric === 'activities') return acts.length;
+  if (metric === 'hours') return acts.reduce((s, a) => s + (Number(a.duration_sec) || 0), 0) / 3600;
+  if (metric === 'days') return new Set(acts.map((a) => new Date(a.date).toDateString())).size;
+  return acts.reduce((s, a) => s + Number(a.distance_km), 0);
+}
+
+/** "12,5 km", "3 atividades", "4,2 h", "5 dias". */
+export function formatMetricValue(metric: ChallengeMetric, value: number): string {
+  const n = metric === 'activities' || metric === 'days' ? String(Math.round(value)) : value.toFixed(1).replace('.', ',');
+  if (metric === 'activities') return `${n} ${Math.round(value) === 1 ? 'atividade' : 'atividades'}`;
+  if (metric === 'days') return `${n} ${Math.round(value) === 1 ? 'dia' : 'dias'}`;
+  return `${n} ${METRIC_UNIT[metric]}`;
 }

@@ -21,6 +21,7 @@ import { RankBadge } from '../components/RankBadge';
 import { TrainlyButton } from '../components/TrainlyButton';
 import { RegisterActivityModal } from '../components/RegisterActivityModal';
 import { QuestsCard } from '../components/QuestsCard';
+import { DailyRewardCard } from '../components/DailyRewardCard';
 import { SectionTitle } from '../components/SectionTitle';
 import { SportBadge } from '../components/SportIcon';
 import { XpChip } from '../components/XpChip';
@@ -29,6 +30,7 @@ import { Skeleton, SkeletonRow } from '../components/Skeleton';
 import { EmptyState } from '../components/EmptyState';
 import { Text } from '../components/Typography';
 import { formatClock, formatKm, formatKmShort } from '../lib/geo';
+import { formatGoalNumber, monthlyGoalProgress } from '../lib/goal';
 import { RootStackParamList } from '../navigation/types';
 
 const CHART_HEIGHT = 96;
@@ -90,17 +92,12 @@ export function DashboardScreen() {
   const weekActivities = activities.filter((a) => new Date(a.date) >= weekStart);
   const weekSeconds = weekActivities.reduce((s, a) => s + (a.duration_sec ?? 0), 0);
 
-  const goalKm = profile?.monthly_goal_km ?? 50;
-  // Compara mês E ano: só com o mês, uma corrida de setembro/2025 entrava na
-  // meta de setembro/2026.
-  const monthKm = activities
-    .filter((a) => {
-      const d = new Date(a.date);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    })
-    .reduce((s, a) => s + Number(a.distance_km), 0);
-  const goalPct = Math.min(100, Math.round((monthKm / goalKm) * 100));
-  const goalLeft = Math.max(0, goalKm - monthKm);
+  // Meta do mês por tipo (km, atividades ou horas) — igual ao site.
+  const goal = monthlyGoalProgress(profile, activities, now);
+  const goalPct = Math.round(goal.pct * 100);
+  const goalLeft = Math.max(0, goal.target - goal.current);
+  const goalDone = goalLeft <= 0;
+  const fmtGoal = (n: number) => (goal.type === 'km' ? formatKm(n) : formatGoalNumber(n));
   const monthName = now.toLocaleDateString('pt-BR', { month: 'long' });
 
   const firstName = profile?.name?.split(' ')[0] ?? '';
@@ -185,12 +182,31 @@ export function DashboardScreen() {
           />
         </FadeIn>
 
+        {/* Só aparece num banco com site_integration.sql (coluna last_daily_reward). */}
+        {profile && 'last_daily_reward' in profile ? (
+          <FadeIn delay={85}>
+            <DailyRewardCard profile={profile} onClaimed={refreshProfile} />
+          </FadeIn>
+        ) : null}
+
         <FadeIn delay={100}>
           <QuestsCard daily={daily} weekly={weekly} completedCount={completedCount} total={questTotal} loading={questsLoading} />
         </FadeIn>
 
         <FadeIn delay={140}>
-          <SectionTitle title="Últimos 7 dias" style={{ marginTop: 30 }} />
+          <SectionTitle
+            title="Últimos 7 dias"
+            style={{ marginTop: 30 }}
+            right={
+              <Text
+                onPress={() => navigation.navigate('Evolution')}
+                style={{ color: colors.primary, fontSize: 13, fontWeight: '700' }}
+                accessibilityRole="link"
+              >
+                Ver evolução
+              </Text>
+            }
+          />
           <Card>
             {firstLoad ? (
               <Skeleton width={130} height={40} />
@@ -222,12 +238,13 @@ export function DashboardScreen() {
           <Card style={{ marginTop: 12 }}>
             <View style={styles.goalTop}>
               <Text style={[styles.goalTitle, { color: colors.textPrimary }]}>Meta de {monthName}</Text>
-              <Text style={[styles.goalPct, { color: goalLeft > 0 ? colors.textPrimary : colors.success }]}>{goalPct}%</Text>
+              <Text style={[styles.goalPct, { color: goalDone ? colors.success : colors.textPrimary }]}>{goalPct}%</Text>
             </View>
-            <SegmentedBar progress={goalPct / 100} segments={20} height={10} color={goalLeft > 0 ? colors.primary : colors.success} />
+            <SegmentedBar progress={goal.pct} segments={20} height={10} color={goalDone ? colors.success : colors.primary} />
             <Text style={[styles.caption, { color: colors.textMuted, marginTop: 10 }]}>
-              <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>{formatKm(monthKm)}</Text> de {goalKm} km
-              {goalLeft > 0 ? `, faltam ${formatKm(goalLeft)} km` : ', meta batida'}
+              <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>{fmtGoal(goal.current)}</Text> de{' '}
+              {formatGoalNumber(goal.target)} {goal.unit}
+              {goalDone ? ', meta batida' : `, faltam ${fmtGoal(goalLeft)} ${goal.unit}`}
             </Text>
           </Card>
         </FadeIn>

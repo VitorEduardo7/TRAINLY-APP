@@ -1,4 +1,4 @@
-import { RefObject, useEffect, useRef, useState } from 'react';
+import { ComponentRef, RefObject, useEffect, useRef, useState } from 'react';
 import { Keyboard, KeyboardEvent, LayoutAnimation, Platform, ScrollView, TextInput, View } from 'react-native';
 
 /**
@@ -20,7 +20,7 @@ import { Keyboard, KeyboardEvent, LayoutAnimation, Platform, ScrollView, TextInp
  * teclado; se algum aparelho ainda encolher a janela, o container encolhe
  * junto e a sobreposição medida vira 0 — sem empurrar duas vezes.
  */
-export function useKeyboardLift(containerRef: RefObject<View | null>, options?: { enabled?: boolean }): number {
+export function useKeyboardLift(containerRef: RefObject<ViewRef | null>, options?: { enabled?: boolean }): number {
   const enabled = options?.enabled ?? true;
   const [lift, setLift] = useState(0);
   const liftRef = useRef(0);
@@ -88,8 +88,8 @@ export function useKeyboardLift(containerRef: RefObject<View | null>, options?: 
  * tocado podia ficar logo abaixo da borda.
  */
 export function scrollFocusedIntoView(
-  scroll: ScrollView | null,
-  viewport: View | null,
+  scroll: ScrollViewRef | null,
+  viewport: ViewRef | null,
   scrollY: number,
   margin = 20,
 ) {
@@ -105,3 +105,7 @@ export function scrollFocusedIntoView(
     });
   });
 }
+
+/** Tipo da "ref" de uma View / ScrollView (no RN 0.88 elas viraram componentes de função). */
+export type ViewRef = ComponentRef<typeof View>;
+export type ScrollViewRef = ComponentRef<typeof ScrollView>;

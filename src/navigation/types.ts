@@ -1,6 +1,9 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 export type RootStackParamList = {
   Auth: undefined;
-  Main: undefined;
+  /** As abas. Dá pra abrir direto numa aba: navigate('Main', { screen: 'Friends' }). */
+  Main: NavigatorScreenParams<MainTabParamList> | undefined;
   Run: undefined;
   ClubDetail: { clubId: string };
   RouteDetail: { routeId: string };
@@ -19,6 +22,10 @@ export type RootStackParamList = {
   Streak: { userId: string; name?: string };
   /** Configurações gerais: conta (e-mail/senha), acessibilidade, sessão. */
   Settings: undefined;
+  /** Gráficos de evolução (km por mês, ritmo médio) — sempre a própria pessoa. */
+  Evolution: undefined;
+  /** Introdução do primeiro acesso (XP, patentes, social e meta do mês). */
+  Onboarding: undefined;
 };
 
 export type MainTabParamList = {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { ActivityComment, FeedActivity, SearchProfile } from '../types/models';
+import { SearchProfile } from '../types/models';
 
 // Busca de atletas + seguir/deixar de seguir.
 export function useFollowing(userId: string | undefined) {
@@ -24,7 +24,7 @@ export function useFollowing(userId: string | undefined) {
     setFollowingIds((prev) => {
       // Só troca a referência do Set se o conteúdo realmente mudou. Sem
       // isso, todo reload criava um Set NOVO mesmo com o mesmo conteúdo, o
-      // que mudava a identidade de `useFeed` (que depende de followingIds),
+      // que mudava a identidade de `usePostsFeed` (que depende de followingIds),
       // que por sua vez mudava a identidade do callback do useFocusEffect
       // em FriendsScreen — e como o efeito roda de novo sempre que sua
       // referência muda enquanto a tela está em foco, isso virava um loop
@@ -120,201 +120,154 @@ export function useFollowing(userId: string | undefined) {
   return { followingIds, results, searching, search, follow, unfollow, reload: loadFollowing };
 }
 
-// Feed de atividades de quem eu sigo (+ minhas próprias), com curtidas.
-export function useFeed(userId: string | undefined, followingIds: Set<string>) {
-  const [feed, setFeed] = useState<FeedActivity[]>([]);
+export interface ActiveTodayFriend {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  type: string;
+  distanceKm: number;
+}
+
+export interface SuggestedAthlete {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  location: string | null;
+  kmMonth: number;
+  mutualCount: number;
+}
+
+export interface WeeklyRankRow {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  weekKm: number;
+  isMe: boolean;
+}
+
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/** Segunda-feira 00:00 desta semana (mesmo critério do site e do streak). */
+function startOfWeek(): Date {
+  const d = startOfToday();
+  const day = d.getDay();
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  return d;
+}
+
+/**
+ * O "resto" da página de amigos do site: quem treinou hoje, atletas
+ * sugeridos (gente que você ainda não segue, sorteada) e o ranking da
+ * semana em km entre você e quem você segue.
+ */
+export function useFriendsOverview(userId: string | undefined, followingIds: Set<string>) {
+  const [activeToday, setActiveToday] = useState<ActiveTodayFriend[]>([]);
+  const [suggested, setSuggested] = useState<SuggestedAthlete[]>([]);
+  const [ranking, setRanking] = useState<WeeklyRankRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const key = Array.from(followingIds).sort().join(',');
 
   const load = useCallback(async () => {
     if (!userId) return;
     setLoading(true);
-    const authorIds = Array.from(new Set([userId, ...Array.from(followingIds)]));
+    const followed = Array.from(followingIds);
+    const rankIds = [userId, ...followed];
+    const monthStart = startOfToday();
+    monthStart.setDate(1);
 
-    const COLUMNS = 'id, user_id, date, type, title, distance_km, duration_sec, elevation_m, xp_earned';
+    const [todayRes, weekRes, candidatesRes] = await Promise.all([
+      followed.length
+        ? supabase
+            .from('activities')
+            .select('user_id, type, distance_km, date')
+            .in('user_id', followed)
+            .gte('date', startOfToday().toISOString())
+            .order('date', { ascending: false })
+        : Promise.resolve({ data: [] as any[] }),
+      supabase.from('activities').select('user_id, distance_km').in('user_id', rankIds).gte('date', startOfWeek().toISOString()),
+      supabase.from('profiles').select('id, name, avatar_url, location').neq('id', userId).limit(300),
+    ]);
 
-    let activities: any[] = [];
-
-    // Primeiro tenta trazer o autor junto (1 requisição). Esse "embed" depende
-    // da chave estrangeira activities.user_id -> profiles.id estar visível pro
-    // PostgREST; se por algum motivo ela não resolver, o feed inteiro falhava e
-    // aparecia "Não foi possível carregar o feed" mesmo com tudo no ar. Agora,
-    // nesse caso, ele refaz a busca sem o embed e pega os nomes à parte.
-    const withAuthor = await supabase
-      .from('activities')
-      .select(`${COLUMNS}, author:profiles(name, avatar_url)`)
-      .in('user_id', authorIds)
-      .order('date', { ascending: false })
-      .limit(30);
-
-    if (!withAuthor.error) {
-      activities = (withAuthor.data ?? []) as any[];
-    } else {
-      const plain = await supabase
-        .from('activities')
-        .select(COLUMNS)
-        .in('user_id', authorIds)
-        .order('date', { ascending: false })
-        .limit(30);
-
-      if (plain.error) {
-        setError(true);
-        setLoading(false);
-        return;
-      }
-
-      const rows = (plain.data ?? []) as any[];
-      const { data: authorRows } = await supabase
-        .from('profiles')
-        .select('id, name, avatar_url')
-        .in('id', authorIds);
-      const authorById = new Map(((authorRows ?? []) as any[]).map((p) => [p.id, p]));
-      activities = rows.map((a) => ({ ...a, author: authorById.get(a.user_id) ?? null }));
+    // Sugestões: quem eu ainda não sigo, embaralhado, 8 por vez (igual ao site).
+    const candidates = ((candidatesRes.data ?? []) as any[]).filter((p) => !followingIds.has(p.id));
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
     }
+    const picks = candidates.slice(0, 8);
+    const pickIds = picks.map((p) => p.id);
 
-    setError(false);
-
-    const activityIds = activities.map((a) => a.id);
-
-    const likesByActivity = new Map<string, { count: number; likedByMe: boolean }>();
-    const commentCountByActivity = new Map<string, number>();
-    if (activityIds.length > 0) {
-      const [{ data: likeRows }, { data: commentRows }] = await Promise.all([
-        supabase.from('activity_likes').select('activity_id, user_id').in('activity_id', activityIds),
-        supabase.from('activity_comments').select('activity_id').in('activity_id', activityIds),
-      ]);
-      for (const like of (likeRows ?? []) as any[]) {
-        const entry = likesByActivity.get(like.activity_id) ?? { count: 0, likedByMe: false };
-        entry.count += 1;
-        if (like.user_id === userId) entry.likedByMe = true;
-        likesByActivity.set(like.activity_id, entry);
-      }
-      for (const c of (commentRows ?? []) as any[]) {
-        commentCountByActivity.set(c.activity_id, (commentCountByActivity.get(c.activity_id) ?? 0) + 1);
-      }
-    }
-
-    setFeed(
-      activities.map((a) => {
-        const likeInfo = likesByActivity.get(a.id) ?? { count: 0, likedByMe: false };
-        return {
-          id: a.id,
-          user_id: a.user_id,
-          authorName: a.author?.name ?? 'Atleta',
-          authorAvatarUrl: a.author?.avatar_url ?? null,
-          date: a.date,
-          type: a.type,
-          title: a.title,
-          distance_km: Number(a.distance_km),
-          duration_sec: a.duration_sec,
-          elevation_m: a.elevation_m,
-          xp_earned: a.xp_earned,
-          likeCount: likeInfo.count,
-          likedByMe: likeInfo.likedByMe,
-          commentCount: commentCountByActivity.get(a.id) ?? 0,
-        } as FeedActivity;
-      }),
+    const profileIds = Array.from(
+      new Set([...rankIds, ...((todayRes.data ?? []) as any[]).map((r) => r.user_id as string)]),
     );
+    const [profilesRes, pickActsRes, pickFollowsRes] = await Promise.all([
+      supabase.from('profiles').select('id, name, avatar_url').in('id', profileIds),
+      pickIds.length
+        ? supabase.from('activities').select('user_id, distance_km').in('user_id', pickIds).gte('date', monthStart.toISOString())
+        : Promise.resolve({ data: [] as any[] }),
+      pickIds.length
+        ? supabase.from('following').select('follower_id, followed_id').in('follower_id', pickIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+    const profiles = new Map(((profilesRes.data ?? []) as any[]).map((p) => [p.id, p]));
+
+    const seen = new Set<string>();
+    const active: ActiveTodayFriend[] = [];
+    for (const r of (todayRes.data ?? []) as any[]) {
+      if (seen.has(r.user_id)) continue;
+      seen.add(r.user_id);
+      const p = profiles.get(r.user_id);
+      active.push({
+        id: r.user_id,
+        name: p?.name ?? 'Atleta',
+        avatarUrl: p?.avatar_url ?? null,
+        type: r.type ?? 'Corrida',
+        distanceKm: Number(r.distance_km) || 0,
+      });
+    }
+
+    const weekKm = new Map<string, number>(rankIds.map((id) => [id, 0]));
+    for (const a of (weekRes.data ?? []) as any[]) weekKm.set(a.user_id, (weekKm.get(a.user_id) ?? 0) + Number(a.distance_km));
+    const rank: WeeklyRankRow[] = rankIds
+      .map((id) => ({
+        id,
+        name: profiles.get(id)?.name ?? 'Atleta',
+        avatarUrl: profiles.get(id)?.avatar_url ?? null,
+        weekKm: weekKm.get(id) ?? 0,
+        isMe: id === userId,
+      }))
+      .sort((a, b) => b.weekKm - a.weekKm || a.name.localeCompare(b.name, 'pt-BR'))
+      .slice(0, 10);
+
+    const pickActs = (pickActsRes.data ?? []) as any[];
+    const pickFollows = (pickFollowsRes.data ?? []) as any[];
+    setSuggested(
+      picks.map((p) => ({
+        id: p.id,
+        name: p.name,
+        avatarUrl: p.avatar_url ?? null,
+        location: p.location ?? null,
+        kmMonth: pickActs.filter((a) => a.user_id === p.id).reduce((s, a) => s + Number(a.distance_km), 0),
+        // Amigos em comum = gente que essa pessoa segue e eu também sigo.
+        mutualCount: pickFollows.filter((f) => f.follower_id === p.id && followingIds.has(f.followed_id)).length,
+      })),
+    );
+    setActiveToday(active);
+    setRanking(rank);
     setLoading(false);
-  }, [userId, followingIds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, key]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const toggleLike = useCallback(
-    async (activity: FeedActivity) => {
-      if (!userId) return;
-      // otimista: atualiza a UI na hora, sem esperar o servidor responder
-      setFeed((prev) =>
-        prev.map((a) =>
-          a.id === activity.id
-            ? { ...a, likedByMe: !a.likedByMe, likeCount: a.likeCount + (a.likedByMe ? -1 : 1) }
-            : a,
-        ),
-      );
-      const { error } = activity.likedByMe
-        ? await supabase.from('activity_likes').delete().eq('activity_id', activity.id).eq('user_id', userId)
-        : await supabase.from('activity_likes').insert({ activity_id: activity.id, user_id: userId });
-      if (error) await load(); // desfaz a atualização otimista se der erro
-    },
-    [userId, load],
-  );
+  // Ao seguir alguém pela lista de sugestões, tira a pessoa da lista na hora.
+  const dropSuggestion = useCallback((id: string) => setSuggested((prev) => prev.filter((p) => p.id !== id)), []);
 
-  return { feed, loading, error, reload: load, toggleLike };
-}
-
-// Comentários de uma atividade — carregado sob demanda quando o card do
-// feed é expandido (não busca comentário de toda atividade de uma vez).
-export function useComments(activityId: string | undefined, currentUserId: string | undefined, postOwnerId: string | undefined) {
-  const [comments, setComments] = useState<ActivityComment[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
-  const [posting, setPosting] = useState(false);
-
-  const load = useCallback(async () => {
-    if (!activityId) return;
-    setLoading(true);
-    const { data, error: err } = await supabase
-      .from('activity_comments')
-      .select('id, activity_id, user_id, reply_to_id, body, created_at, author:profiles(name, avatar_url)')
-      .eq('activity_id', activityId)
-      .order('created_at', { ascending: true });
-    if (err) {
-      setError(true);
-      setLoading(false);
-      return;
-    }
-    setError(false);
-    setComments(
-      ((data ?? []) as any[]).map((c) => ({
-        id: c.id,
-        activityId: c.activity_id,
-        userId: c.user_id,
-        replyToId: c.reply_to_id,
-        body: c.body,
-        createdAt: c.created_at,
-        authorName: c.author?.name ?? 'Atleta',
-        authorAvatarUrl: c.author?.avatar_url ?? null,
-      })),
-    );
-    setLoading(false);
-  }, [activityId]);
-
-  const addComment = useCallback(
-    async (body: string, replyToId?: string | null) => {
-      if (!activityId || !currentUserId) throw new Error('Usuário não autenticado');
-      const trimmed = body.trim();
-      if (!trimmed) throw new Error('Escreva algo pra comentar.');
-      setPosting(true);
-      try {
-        const { error } = await supabase.from('activity_comments').insert({
-          activity_id: activityId,
-          user_id: currentUserId,
-          reply_to_id: replyToId ?? null,
-          body: trimmed,
-        });
-        if (error) throw error;
-        await load();
-      } finally {
-        setPosting(false);
-      }
-    },
-    [activityId, currentUserId, load],
-  );
-
-  const deleteComment = useCallback(async (commentId: string) => {
-    const { error } = await supabase.from('activity_comments').delete().eq('id', commentId);
-    if (error) throw error;
-    // Respostas a esse comentário somem em cascata no banco — reflete o
-    // mesmo aqui na hora, sem esperar recarregar.
-    setComments((prev) => prev.filter((c) => c.id !== commentId && c.replyToId !== commentId));
-  }, []);
-
-  const canDelete = useCallback(
-    (comment: ActivityComment) => !!currentUserId && (comment.userId === currentUserId || postOwnerId === currentUserId),
-    [currentUserId, postOwnerId],
-  );
-
-  return { comments, loading, error, posting, load, addComment, deleteComment, canDelete };
+  return { activeToday, suggested, ranking, loading, reload: load, dropSuggestion };
 }

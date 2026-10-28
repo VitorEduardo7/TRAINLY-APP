@@ -79,7 +79,7 @@ export function Text({ style, children, ...rest }: TextProps) {
   );
 }
 
-export const TextInput = forwardRef<RNTextInput, TextInputProps>(function TextInput({ style, ...rest }, ref) {
+export const TextInput = forwardRef<React.ComponentRef<typeof RNTextInput>, TextInputProps>(function TextInput({ style, ...rest }, ref) {
   const ready = useFontsReady();
   const { fontScale } = useTheme();
   const override = combinedOverride(style, false, ready, FONT_SCALE_MULTIPLIER[fontScale]);

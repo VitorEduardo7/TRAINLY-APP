@@ -1,6 +1,6 @@
 import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import { Platform, ScrollView, ScrollViewProps, StyleSheet, View } from 'react-native';
-import { scrollFocusedIntoView, useKeyboardLift } from '../lib/keyboard';
+import { ScrollViewRef, ViewRef, scrollFocusedIntoView, useKeyboardLift } from '../lib/keyboard';
 
 /**
  * `ScrollView` de tela com campos de texto que nunca deixa o teclado cobrir
@@ -16,7 +16,7 @@ import { scrollFocusedIntoView, useKeyboardLift } from '../lib/keyboard';
  *   "de ponta a ponta"), então a área rolável encolhe pelo `useKeyboardLift`
  *   e o campo tocado é rolado até aparecer.
  */
-export const KeyboardAwareScrollView = forwardRef<ScrollView, ScrollViewProps>(function KeyboardAwareScrollView(
+export const KeyboardAwareScrollView = forwardRef<ScrollViewRef, ScrollViewProps>(function KeyboardAwareScrollView(
   props,
   ref,
 ) {
@@ -38,14 +38,14 @@ function AndroidKeyboardAwareScrollView({
   forwardedRef,
   onScroll,
   ...props
-}: ScrollViewProps & { forwardedRef: React.ForwardedRef<ScrollView> }) {
-  const containerRef = useRef<View>(null);
-  const viewportRef = useRef<View>(null);
-  const scrollRef = useRef<ScrollView>(null);
+}: ScrollViewProps & { forwardedRef: React.ForwardedRef<ScrollViewRef> }) {
+  const containerRef = useRef<ViewRef>(null);
+  const viewportRef = useRef<ViewRef>(null);
+  const scrollRef = useRef<ScrollViewRef>(null);
   const scrollY = useRef(0);
   const lift = useKeyboardLift(containerRef);
 
-  useImperativeHandle(forwardedRef, () => scrollRef.current as ScrollView);
+  useImperativeHandle(forwardedRef, () => scrollRef.current as ScrollViewRef);
 
   return (
     <View ref={containerRef} style={[styles.fill, { paddingBottom: lift }]}>

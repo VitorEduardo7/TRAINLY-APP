@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/ThemeContext';
 import { withAlpha } from '../theme/colors';
-import { scrollFocusedIntoView, useKeyboardLift } from '../lib/keyboard';
+import { ScrollViewRef, ViewRef, scrollFocusedIntoView, useKeyboardLift } from '../lib/keyboard';
 import { prefersReducedMotion, PressableScale } from './Motion';
 import { Text } from './Typography';
 
@@ -62,9 +62,9 @@ export function FormSheet({ visible, onClose, title, subtitle, icon, children, f
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const overlayRef = useRef<View>(null);
-  const viewportRef = useRef<View>(null);
-  const scrollRef = useRef<ScrollView>(null);
+  const overlayRef = useRef<ViewRef>(null);
+  const viewportRef = useRef<ViewRef>(null);
+  const scrollRef = useRef<ScrollViewRef>(null);
   const scrollY = useRef(0);
   const [overlayHeight, setOverlayHeight] = useState(0);
   const keyboardLift = useKeyboardLift(overlayRef, { enabled: visible });

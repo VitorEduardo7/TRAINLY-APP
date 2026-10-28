@@ -1,5 +1,5 @@
-import React, { useLayoutEffect } from 'react';
-import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import React, { useLayoutEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Image, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,10 @@ import { useTheme } from '../theme/ThemeContext';
 import { useAuth } from '../hooks/useAuth';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { useStreak } from '../hooks/useStreak';
+import { useUserPosts } from '../hooks/usePosts';
+import { SegmentedTabs } from '../components/SegmentedTabs';
+import { ActivityCard } from '../components/ActivityCard';
+import { PostCard } from '../components/PostCard';
 import { Card } from '../components/Card';
 import { Avatar, avatarFrameSize } from '../components/Avatar';
 import { RankWidget } from '../components/RankWidget';
@@ -54,6 +58,11 @@ export function UserProfileScreen() {
     toggleBlock,
   } = useUserProfile(params.userId, me?.id);
   const { streak } = useStreak(params.userId);
+  const posts = useUserPosts(params.userId, me?.id);
+  const [section, setSection] = useState<'perfil' | 'treinos' | 'publicacoes'>('perfil');
+  const openProfile = (userId: string, name?: string) => {
+    if (userId !== params.userId) navigation.push('UserProfile', { userId, name });
+  };
 
   // Título do header: usa o nome que já veio na navegação enquanto carrega,
   // pra a tela não abrir com o cabeçalho vazio e "pular" depois.
@@ -114,10 +123,22 @@ export function UserProfileScreen() {
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={reload} tintColor={colors.primary} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={loading}
+          onRefresh={() => {
+            reload();
+            posts.reload();
+          }}
+          tintColor={colors.primary}
+        />
+      }
     >
       <FadeIn style={styles.header}>
-        <View style={{ width: AVATAR_FRAME_SIZE, height: AVATAR_FRAME_SIZE }}>
+        {profile.cover_url ? (
+          <Image source={{ uri: profile.cover_url }} style={[styles.cover, { backgroundColor: colors.surface }]} resizeMode="cover" />
+        ) : null}
+        <View style={[{ width: AVATAR_FRAME_SIZE, height: AVATAR_FRAME_SIZE }, profile.cover_url ? styles.avatarOnCover : null]}>
           <Avatar name={profile.name} size={AVATAR_SIZE} uri={profile.avatar_url} frameTier={frameTier.name} zoomable />
           <View style={styles.streakAnchor}>
             <StreakBadge streak={streak} userId={profile.id} ownerFirstName={isMe ? undefined : firstName} size="sm" />
@@ -170,56 +191,117 @@ export function UserProfileScreen() {
         </FadeIn>
       )}
 
-      <FadeIn delay={130} style={{ marginTop: 16 }}>
-        <AchievementsPreviewCard
-          userId={profile.id}
-          onPress={() => navigation.navigate('Achievements', { userId: profile.id, name: profile.name })}
-        />
-      </FadeIn>
+      <SegmentedTabs
+        options={[
+          { value: 'perfil', label: 'Perfil' },
+          { value: 'treinos', label: 'Treinos' },
+          { value: 'publicacoes', label: 'Posts', count: posts.posts.length },
+        ]}
+        value={section}
+        onChange={setSection}
+        style={{ marginTop: 20 }}
+      />
 
-      <FadeIn delay={150}>
-        <Card style={{ marginTop: 16 }}>
-          <SectionTitle title="Patente Atual" />
-          <RankWidget xp={profile.xp ?? 0} />
-        </Card>
-      </FadeIn>
-
-      <FadeIn delay={200}>
-        <Card style={{ marginTop: 16 }}>
-          <SectionTitle title="Patentes" />
-          <RankTrail xp={profile.xp ?? 0} subjectName={isMe ? undefined : firstName} />
-        </Card>
-      </FadeIn>
-
-      <FadeIn delay={250}>
-        <Card style={{ marginTop: 16 }}>
-          <SectionTitle title="Resumo" />
-          <View style={styles.grid}>
-            <StatTile icon="navigate" label="Distância Total" value={`${formatKm(stats.totalKm)} km`} />
-            <StatTile icon="time" label="Tempo Ativo" value={formatClock(stats.totalSec)} />
-            <StatTile icon="trending-up" label="Elevação Acum." value={`${stats.totalElev} m`} />
-            <StatTile icon="flash" label="Atividades" value={String(stats.count)} />
-            <StatTile icon="calendar-outline" label="Dias Ativos" value={`${stats.activeDays} dias`} />
-            <StatTile icon="star" label="XP Total" value={(profile.xp ?? 0).toLocaleString('pt-BR')} />
-          </View>
-        </Card>
-      </FadeIn>
-
-      <FadeIn delay={300}>
-        <Card style={{ marginTop: 16, marginBottom: 8 }}>
-          <SectionTitle title="Recordes Pessoais" />
-          {stats.count === 0 ? (
-            <Text style={[styles.empty, { color: colors.textMuted }]}>
-              {firstName} ainda não registrou nenhuma atividade.
-            </Text>
+      {section === 'treinos' && (
+        <View style={{ marginTop: 16 }}>
+          {activities.length === 0 ? (
+            <EmptyState compact icon="footsteps-outline" title="Nenhum treino ainda" message={`${firstName} ainda não registrou atividades.`} />
           ) : (
-            <View style={styles.grid}>
-              <StatTile icon="navigate" label="Maior Distância" value={`${formatKm(stats.bestDistanceKm)} km`} />
-              <StatTile icon="time" label="Maior Duração" value={formatClock(stats.longestDurationSec)} />
-            </View>
+            activities.slice(0, 20).map((a, i) => (
+              <FadeIn key={a.id} delay={Math.min(i, 5) * 50}>
+                <ActivityCard activity={a} showXp={isMe} />
+              </FadeIn>
+            ))
           )}
-        </Card>
-      </FadeIn>
+        </View>
+      )}
+
+      {section === 'publicacoes' && (
+        <View style={{ marginTop: 16 }}>
+          {posts.loading && posts.posts.length === 0 ? (
+            <ActivityIndicator color={colors.primary} style={{ marginVertical: 20 }} />
+          ) : posts.posts.length === 0 ? (
+            <EmptyState
+              compact
+              icon="chatbubbles-outline"
+              title="Nenhuma publicação pra mostrar"
+              message={
+                isMe || isFollowing || followsMe
+                  ? `${isMe ? 'Você' : firstName} ainda não publicou nada.`
+                  : `As publicações de ${firstName} aparecem só pra amigos. Siga pra ver.`
+              }
+            />
+          ) : (
+            posts.posts.map((post) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                viewerId={me?.id}
+                onToggleLike={posts.toggleLike}
+                onAddComment={posts.addComment}
+                onDeleteComment={posts.deleteComment}
+                onDelete={posts.deletePost}
+                onOpenProfile={openProfile}
+              />
+            ))
+          )}
+        </View>
+      )}
+
+      {section === 'perfil' && (
+        <>
+          <FadeIn delay={130} style={{ marginTop: 16 }}>
+            <AchievementsPreviewCard
+              userId={profile.id}
+              onPress={() => navigation.navigate('Achievements', { userId: profile.id, name: profile.name })}
+            />
+          </FadeIn>
+
+          <FadeIn delay={150}>
+            <Card style={{ marginTop: 16 }}>
+              <SectionTitle title="Patente Atual" />
+              <RankWidget xp={profile.xp ?? 0} />
+            </Card>
+          </FadeIn>
+
+          <FadeIn delay={200}>
+            <Card style={{ marginTop: 16 }}>
+              <SectionTitle title="Patentes" />
+              <RankTrail xp={profile.xp ?? 0} subjectName={isMe ? undefined : firstName} />
+            </Card>
+          </FadeIn>
+
+          <FadeIn delay={250}>
+            <Card style={{ marginTop: 16 }}>
+              <SectionTitle title="Resumo" />
+              <View style={styles.grid}>
+                <StatTile icon="navigate" label="Distância Total" value={`${formatKm(stats.totalKm)} km`} />
+                <StatTile icon="time" label="Tempo Ativo" value={formatClock(stats.totalSec)} />
+                <StatTile icon="trending-up" label="Elevação Acum." value={`${stats.totalElev} m`} />
+                <StatTile icon="flash" label="Atividades" value={String(stats.count)} />
+                <StatTile icon="calendar-outline" label="Dias Ativos" value={`${stats.activeDays} dias`} />
+                <StatTile icon="star" label="XP Total" value={(profile.xp ?? 0).toLocaleString('pt-BR')} />
+              </View>
+            </Card>
+          </FadeIn>
+
+          <FadeIn delay={300}>
+            <Card style={{ marginTop: 16, marginBottom: 8 }}>
+              <SectionTitle title="Recordes Pessoais" />
+              {stats.count === 0 ? (
+                <Text style={[styles.empty, { color: colors.textMuted }]}>
+                  {firstName} ainda não registrou nenhuma atividade.
+                </Text>
+              ) : (
+                <View style={styles.grid}>
+                  <StatTile icon="navigate" label="Maior Distância" value={`${formatKm(stats.bestDistanceKm)} km`} />
+                  <StatTile icon="time" label="Maior Duração" value={formatClock(stats.longestDurationSec)} />
+                </View>
+              )}
+            </Card>
+          </FadeIn>
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -237,6 +319,8 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   content: { padding: 20, paddingBottom: 40 },
   header: { alignItems: 'center', marginBottom: 20 },
+  cover: { width: '100%', height: 140, borderRadius: 20 },
+  avatarOnCover: { marginTop: -AVATAR_FRAME_SIZE / 2 },
   // Grudado fora da moldura (não por cima do anel) — mais pra direita ainda
   // do que a primeira tentativa, pra sair bem clara da borda.
   streakAnchor: { position: 'absolute', right: -22, bottom: -2 },

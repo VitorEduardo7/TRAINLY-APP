@@ -13,7 +13,17 @@ export interface Profile {
   equipped_frame_tier: string | null;
   /** Cor do mapa preferida na sua própria corrida — `null` = automático (usa a patente atual). */
   equipped_map_tier: string | null;
+  /** Foto de capa do perfil (bucket `covers`) — vem do site, ver site_integration.sql. */
+  cover_url?: string | null;
+  /** Tipo da meta do mês (igual ao site): km, número de atividades ou horas. */
+  monthly_goal_type?: GoalType | null;
+  /** Valor da meta do mês, na unidade de `monthly_goal_type`. */
+  monthly_goal_value?: number | null;
+  /** Último dia (AAAA-MM-DD, horário de Brasília) em que resgatou a recompensa diária. */
+  last_daily_reward?: string | null;
 }
+
+export type GoalType = 'km' | 'activities' | 'hours';
 
 export interface Activity {
   id: string;
@@ -28,6 +38,8 @@ export interface Activity {
   xp_earned: number;
   path: [number, number][] | null; // [lat, lon][]
   created_at: string;
+  /** Foto do treino (bucket `activity-photos`), opcional. */
+  photo_url?: string | null;
 }
 
 export interface PersonalRecord {
@@ -61,12 +73,18 @@ export interface ClubMember {
   profile?: Pick<Profile, 'id' | 'name' | 'avatar_url'>;
 }
 
+/** Como o desafio é medido (igual ao site): km, atividades, horas ou dias ativos. */
+export type ChallengeMetric = 'km' | 'activities' | 'hours' | 'days';
+
 export interface ClubChallenge {
   id: string;
   club_id: string;
   title: string;
   description: string | null;
+  /** Meta por membro — só faz sentido (e só aparece) em desafio de km com valor > 0. */
   goal_km: number;
+  /** Ausente em bancos que ainda não rodaram site_integration.sql → trata como 'km'. */
+  metric?: ChallengeMetric | null;
   start_date: string; // AAAA-MM-DD
   end_date: string; // AAAA-MM-DD
   created_by: string;
@@ -76,9 +94,13 @@ export interface ClubChallenge {
 export interface ChallengeProgress {
   userId: string;
   name: string;
+  avatarUrl?: string | null;
+  /** Valor na métrica do desafio (km, atividades, horas ou dias). */
+  value: number;
+  /** Mantido por compatibilidade: igual a `value` quando a métrica é km. */
   km: number;
   goalKm: number;
-  pct: number; // 0-100+
+  pct: number; // 0-100+ (só com meta de km)
 }
 
 // --- Rotas ----------------------------------------------------------------
@@ -104,7 +126,7 @@ export interface TrainlyRoute {
   creator_map_tier?: string | null;
 }
 
-// --- Amigos (seguir + feed + curtidas) -------------------------------------
+// --- Amigos (seguir) -----------------------------------------------------------
 
 export interface SearchProfile {
   id: string;
@@ -113,37 +135,51 @@ export interface SearchProfile {
   isFollowing: boolean;
 }
 
-export interface FeedActivity {
-  id: string;
-  user_id: string;
-  authorName: string;
-  authorAvatarUrl: string | null;
-  date: string;
-  type: ActivityType;
-  title: string | null;
-  distance_km: number;
-  duration_sec: number;
-  elevation_m: number | null;
-  xp_earned: number;
-  likeCount: number;
-  likedByMe: boolean;
-  commentCount: number;
-}
+// --- Publicações (posts) — as mesmas do site -------------------------------
 
-export interface ActivityComment {
+export interface PostComment {
   id: string;
-  activityId: string;
+  postId: string;
   userId: string;
-  replyToId: string | null;
-  body: string;
+  content: string;
   createdAt: string;
   authorName: string;
   authorAvatarUrl: string | null;
 }
 
+export interface Post {
+  id: string;
+  userId: string;
+  authorName: string;
+  authorAvatarUrl: string | null;
+  content: string | null;
+  photoUrl: string | null;
+  createdAt: string;
+  likeCount: number;
+  likedByMe: boolean;
+  /** Só amigos (alguém que eu sigo ou que me segue) podem curtir e comentar — regra do banco. */
+  canInteract: boolean;
+  isMine: boolean;
+  comments: PostComment[];
+}
+
 // --- Conquistas -------------------------------------------------------
 
-export type AchievementCategory = 'milestone' | 'time_of_day' | 'social';
+export type AchievementCategory =
+  | 'milestone'
+  | 'distance'
+  | 'single'
+  | 'speed'
+  | 'sports'
+  | 'time_of_day'
+  | 'consistency'
+  | 'social'
+  | 'clubs'
+  | 'quests'
+  | 'secret';
+
+/** Nível da conquista (conquistas.sql). */
+export type AchievementTier = 'bronze' | 'prata' | 'ouro' | 'lendaria';
 
 export interface AchievementDefinition {
   id: string;
@@ -152,8 +188,12 @@ export interface AchievementDefinition {
   icon: string;
   category: AchievementCategory;
   xp_reward: number;
-  params: Record<string, number>;
+  /** Regra: {"stat": "total_km", "gte": 100} ou {"stat": "best_pace_5k", "lte": 5}... */
+  params: Record<string, unknown>;
   sort_order: number;
+  /** Só existem depois do conquistas.sql — antes disso valem bronze / não secreta. */
+  tier?: AchievementTier;
+  secret?: boolean;
 }
 
 // --- Desafios (diários/semanais) ---------------------------------------
