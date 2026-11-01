@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { Appearance } from 'react-native';
+import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ColorBlindMode, getColors, ThemeMode, TrainlyColors } from './colors';
 
@@ -12,8 +12,14 @@ export const FONT_SCALE_MULTIPLIER: Record<FontScale, number> = {
   xlarge: 1.3,
 };
 
+/** O que a pessoa escolheu: seguir o celular ("system") ou fixar claro/escuro. */
+export type ThemePreference = 'system' | ThemeMode;
+
 interface ThemeContextValue {
+  /** Tema em uso agora (já resolvido). */
   mode: ThemeMode;
+  preference: ThemePreference;
+  setPreference: (p: ThemePreference) => void;
   colors: TrainlyColors;
   toggle: () => void;
   setMode: (mode: ThemeMode) => void;
@@ -38,16 +44,18 @@ const FONT_SCALE_KEY = 'trainly_a11y_font_scale';
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<ThemeMode>(
-    Appearance.getColorScheme() === 'light' ? 'light' : 'dark',
-  );
+  // Padrão: seguir o celular — e acompanhar se ele mudar com o app aberto.
+  const systemScheme = useColorScheme();
+  const [preference, setPreferenceState] = useState<ThemePreference>('system');
+  const mode: ThemeMode =
+    preference === 'system' ? (systemScheme === 'light' ? 'light' : 'dark') : preference;
   const [colorBlindMode, setColorBlindModeState] = useState<ColorBlindMode>(null);
   const [highContrast, setHighContrastState] = useState(false);
   const [fontScale, setFontScaleState] = useState<FontScale>('normal');
 
   useEffect(() => {
     AsyncStorage.getItem(THEME_KEY).then((saved) => {
-      if (saved === 'light' || saved === 'dark') setModeState(saved);
+      if (saved === 'light' || saved === 'dark' || saved === 'system') setPreferenceState(saved);
     });
     AsyncStorage.getItem(COLOR_BLIND_MODE_KEY).then((saved) => {
       if (saved === 'protanopia' || saved === 'deuteranopia' || saved === 'tritanopia') {
@@ -72,10 +80,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const setMode = (next: ThemeMode) => {
-    setModeState(next);
+  const setPreference = (next: ThemePreference) => {
+    setPreferenceState(next);
     AsyncStorage.setItem(THEME_KEY, next).catch(() => {});
   };
+  const setMode = (next: ThemeMode) => setPreference(next);
 
   const toggle = () => setMode(mode === 'dark' ? 'light' : 'dark');
 
@@ -97,6 +106,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(
     () => ({
       mode,
+      preference,
+      setPreference,
       colors: getColors(mode, { colorBlindMode, highContrast }),
       toggle,
       setMode,
@@ -107,7 +118,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       fontScale,
       setFontScale,
     }),
-    [mode, colorBlindMode, highContrast, fontScale],
+    [mode, preference, colorBlindMode, highContrast, fontScale],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

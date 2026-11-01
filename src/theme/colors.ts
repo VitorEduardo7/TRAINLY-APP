@@ -71,21 +71,23 @@ export const SCREEN_WASH = {
 
 export type ScreenWashKey = keyof typeof SCREEN_WASH;
 
+// "Noturno suave": o mesmo azul e dourado, com fundos mais claros e texto
+// menos estourado — cansa menos a vista (pedido da professora, nov/2026).
 export const darkColors: TrainlyColors = {
   primary: '#2f7dfd',
   primaryHover: '#5c9aff',
   primaryLedge: '#1a4fb8',
-  background: '#140f2a',
-  card: '#211a3e',
-  textPrimary: '#f4f1ff',
-  textMuted: '#a49cc4',
-  border: '#322a5c',
-  ledge: '#0b0820',
+  background: '#252238',
+  card: '#312d4a',
+  textPrimary: '#ebe9f3',
+  textMuted: '#bcb8d2',
+  border: '#4a4470',
+  ledge: '#1b1830',
   avatarBg: '#2b5d34',
   danger: '#f2475c',
   success: '#2ebd6b',
   white: '#ffffff',
-  surface: '#2b2352',
+  surface: '#3d3859',
   primarySoft: 'rgba(47,125,253,0.18)',
   gradient: ['#4a93ff', '#1f5ee8'],
   warning: '#ff9f1c',

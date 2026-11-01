@@ -4,7 +4,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { Alert, StyleSheet, Switch, View } from 'react-native';
 import { KeyboardAwareScrollView } from '../components/KeyboardAwareScrollView';
-import { useTheme, FontScale } from '../theme/ThemeContext';
+import { useTheme, FontScale, ThemePreference } from '../theme/ThemeContext';
 import { ColorBlindMode } from '../theme/colors';
 import { useAuth } from '../hooks/useAuth';
 import { Card } from '../components/Card';
@@ -22,6 +22,12 @@ const FONT_SCALE_LABELS: Record<FontScale, string> = {
 };
 const FONT_SCALE_OPTIONS: FontScale[] = ['normal', 'large', 'xlarge'];
 
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: 'system', label: 'Automático' },
+  { value: 'light', label: 'Claro' },
+  { value: 'dark', label: 'Escuro' },
+];
+
 const COLOR_BLIND_LABELS: Record<Exclude<ColorBlindMode, null>, string> = {
   protanopia: 'Protanopia',
   deuteranopia: 'Deuteranopia',
@@ -33,7 +39,8 @@ export function SettingsScreen() {
   const {
     colors,
     mode,
-    toggle,
+    preference,
+    setPreference,
     colorBlindMode,
     setColorBlindMode,
     highContrast,
@@ -225,15 +232,36 @@ export function SettingsScreen() {
       <FadeIn delay={60}>
         <Card style={{ marginTop: 16 }}>
           <SectionTitle title="Aparência" />
-          <ToggleRow
-            title={mode === 'dark' ? 'Tema escuro' : 'Tema claro'}
-            description="Alterna entre claro e escuro. Some sozinho se o celular já tiver um definido, mas pode ser trocado aqui a qualquer momento."
-            value={mode === 'dark'}
-            onChange={() => {
-              selection();
-              toggle();
-            }}
-          />
+          <Text style={[styles.fontSizeLabel, { color: colors.textPrimary }]}>Tema</Text>
+          <View style={styles.fontScaleRow}>
+            {THEME_OPTIONS.map((opt) => {
+              const active = preference === opt.value;
+              return (
+                <PressableScale
+                  key={opt.value}
+                  onPress={() => {
+                    selection();
+                    setPreference(opt.value);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  style={[
+                    styles.fontScaleChip,
+                    active
+                      ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                      : { borderColor: colors.border },
+                  ]}
+                >
+                  <Text style={[styles.fontScaleLabel, { color: active ? '#ffffff' : colors.textMuted }]}>{opt.label}</Text>
+                </PressableScale>
+              );
+            })}
+          </View>
+          <Text style={[styles.toggleDescription, { color: colors.textMuted, marginTop: 10 }]}>
+            {preference === 'system'
+              ? `Segue o modo do celular (agora: ${mode === 'dark' ? 'escuro' : 'claro'}).`
+              : 'Fica sempre assim, mesmo se o celular mudar.'}
+          </Text>
         </Card>
       </FadeIn>
 
